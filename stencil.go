@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+
+	"github.com/bgrewell/stencil/pkg"
 )
 
 var (
@@ -41,6 +43,10 @@ type Stencil struct {
 	ShowCommitHash bool
 	ShowBranch     bool
 	ColoredOutput  bool
+	PositionalArgs *[]pkg.PositionalArg
+	KeywordArgs    *[]pkg.KeywordArg
+	Flags          *[]pkg.Flag
+	EnvVars        *[]pkg.EnvVar
 }
 
 func (s *Stencil) ShowHelp() {

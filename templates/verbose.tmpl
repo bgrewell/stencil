@@ -1,0 +1,53 @@
+{{- /* verbose.tmpl: Help info template for Stencil struct */ -}}
+{{- $app := . -}}
+{{- if $app.ColoredOutput -}}
+{{- $bold := "\033[1m" -}}
+{{- $reset := "\033[0m" -}}
+{{- else -}}
+{{- $bold := "" -}}
+{{- $reset := "" -}}
+{{- end -}}
+
+{{ $bold }}{{ $app.AppName }}{{ $reset }}
+{{ $app.AppDesc }}
+
+{{- if $app.ShowVersion }}
+Version: {{ .Version }}
+{{- end }}
+{{- if $app.ShowBuildDate }}
+Build Date: {{ .BuildDate }}
+{{- end }}
+{{- if $app.ShowCommitHash }}
+Commit Hash: {{ .CommitHash }}
+{{- end }}
+{{- if $app.ShowBranch }}
+Branch: {{ .Branch }}
+{{- end }}
+
+{{- if $app.PositionalArgs }}
+{{ $bold }}Positional Arguments:{{ $reset }}
+{{- range $i, $arg := $app.PositionalArgs }}
+    {{ $arg.Name }}    {{ $arg.Desc }}
+{{- end }}
+{{- end }}
+
+{{- if $app.KeywordArgs }}
+{{ $bold }}Keyword Arguments:{{ $reset }}
+{{- range $i, $arg := $app.KeywordArgs }}
+    --{{ $arg.Name }}=<value>    {{ $arg.Desc }}
+{{- end }}
+{{- end }}
+
+{{- if $app.Flags }}
+{{ $bold }}Flags:{{ $reset }}
+{{- range $i, $flag := $app.Flags }}
+    --{{ $flag.Name }}    {{ $flag.Desc }}
+{{- end }}
+{{- end }}
+
+{{- if $app.EnvVars }}
+{{ $bold }}Environment Variables:{{ $reset }}
+{{- range $i, $env := $app.EnvVars }}
+    {{ $env.Name }}    {{ $env.Desc }}
+{{- end }}
+{{- end }}
