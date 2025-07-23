@@ -1,6 +1,7 @@
 package stencil
 
 import (
+	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -22,6 +23,7 @@ func NewStencil(opts ...Option) *Stencil {
 		ShowBuildDate:  true,
 		ShowCommitHash: true,
 		ShowBranch:     true,
+		ColoredOutput:  true,
 	}
 
 	for _, opt := range opts {
@@ -38,4 +40,15 @@ type Stencil struct {
 	ShowBuildDate  bool
 	ShowCommitHash bool
 	ShowBranch     bool
+	ColoredOutput  bool
+}
+
+func (s *Stencil) ShowHelp() {
+	fmt.Printf("Usage: %s [options]\n\n  Version: %s\n  Build Date: %s\n  Commit Hash: %s\n  Branch: %s\n\nOptions:\n",
+		s.AppName,
+		appVersion,
+		appBuildDate,
+		appCommitHash,
+		appBranch,
+	)
 }

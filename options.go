@@ -35,3 +35,9 @@ func WithBranch(show bool) Option {
 		s.ShowBranch = show
 	}
 }
+
+func WithColor(colored bool) Option {
+	return func(s *Stencil) {
+		s.ColoredOutput = colored
+	}
+}
