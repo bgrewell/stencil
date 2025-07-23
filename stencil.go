@@ -44,8 +44,9 @@ type Stencil struct {
 }
 
 func (s *Stencil) ShowHelp() {
-	fmt.Printf("Usage: %s [options]\n\n  Version: %s\n  Build Date: %s\n  Commit Hash: %s\n  Branch: %s\n\nOptions:\n",
+	fmt.Printf("Usage: %s [options]\n\nDescription: %s\n  Version: %s\n  Build Date: %s\n  Commit Hash: %s\n  Branch: %s\n\nOptions:\n",
 		s.AppName,
+		s.AppDesc,
 		appVersion,
 		appBuildDate,
 		appCommitHash,
