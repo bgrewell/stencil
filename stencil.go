@@ -1,7 +1,6 @@
 package stencil
 
 import (
-	"fmt"
 	"os"
 	"path/filepath"
 )
@@ -15,10 +14,10 @@ var (
 
 type Option func(*Stencil)
 
+// NewStencil creates a new Stencil instance with default values. Options can be provided to customize the instance.
 func NewStencil(opts ...Option) *Stencil {
 	s := &Stencil{
 		AppName:        filepath.Base(os.Args[0]),
-		AppDesc:        "",
 		ShowVersion:    true,
 		ShowBuildDate:  true,
 		ShowCommitHash: true,
@@ -26,14 +25,19 @@ func NewStencil(opts ...Option) *Stencil {
 		ColoredOutput:  true,
 	}
 
+	// apply user options
 	for _, opt := range opts {
 		opt(s)
 	}
 
+	// initialize UI after options are set
+	s.UI = NewConsoleUI(os.Stdout, WithSpinner(s.ColoredOutput))
 	return s
 }
 
+// Stencil represents the helper structure for commonly used command-line application features.
 type Stencil struct {
+	UI             UI
 	AppName        string
 	AppDesc        string
 	ShowVersion    bool
@@ -41,15 +45,4 @@ type Stencil struct {
 	ShowCommitHash bool
 	ShowBranch     bool
 	ColoredOutput  bool
-}
-
-func (s *Stencil) ShowHelp() {
-	fmt.Printf("Usage: %s [options]\n\nDescription: %s\n  Version: %s\n  Build Date: %s\n  Commit Hash: %s\n  Branch: %s\n\nOptions:\n",
-		s.AppName,
-		s.AppDesc,
-		appVersion,
-		appBuildDate,
-		appCommitHash,
-		appBranch,
-	)
 }
