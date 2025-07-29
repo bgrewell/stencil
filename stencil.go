@@ -1,7 +1,7 @@
 package stencil
 
 import (
-	"github.com/bgrewell/stencil/internal/ui"
+	"github.com/bgrewell/stencil/pkg/ui"
 	"os"
 	"path/filepath"
 )
