@@ -1,17 +1,15 @@
 package ui
 
 import (
-	"fmt"
 	"io"
-	"time"
-
-	"github.com/theckman/yacspin"
 )
 
 // Spinner is the handle you get back when you start a spinner.
 type Spinner interface {
-	Update(msg string) error
-	Stop() error
+	Update(format string, args ...interface{})
+	Complete()
+	Stop()
+	Fail()
 }
 
 // UI is the interface your app code talks to.
@@ -19,12 +17,25 @@ type UI interface {
 	Info(format string, args ...interface{})
 	Warn(format string, args ...interface{})
 	Error(format string, args ...interface{})
+	Task(format string, args ...interface{}) (Spinner, error)
+}
 
-	// StartSpinner launches a spinner; caller must Stop().
-	StartSpinner(msg string) (Spinner, error)
+// config holds internal settings for Console UI behavior.
+type config struct {
+	spinnerIndex    int
+	taskColumnWidth int
+	minPadding      int
+	paddingChar     string
+}
 
-	// Progress prints an overwritable progress line.
-	Progress(current, total int64)
+// defaultConfig returns the default config.
+func defaultConfig() config {
+	return config{
+		spinnerIndex:    14,
+		taskColumnWidth: -1,
+		minPadding:      3,
+		paddingChar:     ".",
+	}
 }
 
 // Option tweaks behavior (verbosity, spinner on/off, etc.).
@@ -39,7 +50,7 @@ func NewConsoleUI(out io.Writer, opts ...Option) UI {
 	return &consoleUI{w: out, cfg: cfg}
 }
 
-// WithSpinner enables or disables spinner output.
-func WithSpinner(enabled bool) Option {
-	return func(c *config) { c.enableSpinner = enabled }
+// WithSpinnerStyle allows customization of the spinner style.
+func WithSpinnerStyle(style int) Option {
+	return func(c *config) { c.spinnerIndex = style }
 }

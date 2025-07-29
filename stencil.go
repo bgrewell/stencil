@@ -1,6 +1,7 @@
 package stencil
 
 import (
+	"github.com/bgrewell/stencil/internal/ui"
 	"os"
 	"path/filepath"
 )
@@ -31,13 +32,13 @@ func NewStencil(opts ...Option) *Stencil {
 	}
 
 	// initialize UI after options are set
-	s.UI = NewConsoleUI(os.Stdout, WithSpinner(s.ColoredOutput))
+	s.UI = ui.NewConsoleUI(os.Stdout)
 	return s
 }
 
 // Stencil represents the helper structure for commonly used command-line application features.
 type Stencil struct {
-	UI             UI
+	UI             ui.UI
 	AppName        string
 	AppDesc        string
 	ShowVersion    bool
