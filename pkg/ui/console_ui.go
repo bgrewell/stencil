@@ -125,6 +125,10 @@ func (tc *TaskCompleter) Fail() {
 	_ = tc.spinner.StopFail()
 }
 
+func (tc *TaskCompleter) Raw() *yacspin.Spinner {
+	return tc.spinner
+}
+
 // padRight formats the input string with padding based on the provided character and fixed padding.
 func padRight(input string, paddingChar string, taskColumnWidth int, minPadding int) string {
 

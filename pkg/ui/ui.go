@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"github.com/theckman/yacspin"
 	"io"
 )
 
@@ -10,6 +11,7 @@ type Spinner interface {
 	Complete()
 	Stop()
 	Fail()
+	Raw() *yacspin.Spinner
 }
 
 // UI is the interface your app code talks to.
