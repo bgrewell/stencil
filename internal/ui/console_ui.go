@@ -149,7 +149,7 @@ func padRight(input string, paddingChar string, taskColumnWidth int, minPadding 
 }
 
 func formatMsg(fmtStr string, args ...interface{}) string {
-	if args == nil || len(args) == 0 {
+	if len(args) == 0 {
 		return fmtStr
 	}
 	return fmt.Sprintf(fmtStr, args...)
