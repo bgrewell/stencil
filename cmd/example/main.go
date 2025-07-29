@@ -25,7 +25,11 @@ func main() {
 	setupSp.Complete()
 
 	// 3) Download loop with spinner‑based progress
-	dlSp, _ := ui.Task("Downloading assets")
+	dlSp, err := ui.Task("Downloading assets")
+	if err != nil {
+		ui.Error("failed to start spinner: %v", err)
+		return
+	}
 	total := int64(100)
 	for got := int64(0); got <= total; got += 1 {
 		time.Sleep(300 * time.Millisecond) // simulate chunk
