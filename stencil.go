@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/bgrewell/stencil/pkg/ui"
+	"github.com/fatih/color"
 )
 
 var (
@@ -128,35 +129,6 @@ func (s *Stencil) IntFlag(name, short, usage string, defaultValue int) *int {
 	return value
 }
 
-func (s *Stencil) ShowHelp() {
-	fmt.Fprintf(s.Output, "Usage: %s [OPTIONS]\n", s.AppName)
-
-	if s.AppDesc != "" {
-		fmt.Fprintf(s.Output, "\nDescription: %s\n", s.AppDesc)
-	}
-
-	if s.ShowVersion {
-		fmt.Fprintf(s.Output, "Version: %s\n", appVersion)
-	}
-
-	if s.ShowBuildDate {
-		fmt.Fprintf(s.Output, "Build Date: %s\n", appBuildDate)
-	}
-
-	if s.ShowCommitHash {
-		fmt.Fprintf(s.Output, "Commit Hash: %s\n", appCommitHash)
-	}
-
-	if s.ShowBranch {
-		fmt.Fprintf(s.Output, "Branch: %s\n", appBranch)
-	}
-
-	// List all registered flags and their usage
-	for _, flag := range s.flags {
-		fmt.Fprintf(s.Output, "--%s: %s (default: %v)\n", flag.Name, flag.Usage, flag.Default)
-	}
-}
-
 // convertFlagValue converts a string argument value to the appropriate type.
 func (s *Stencil) convertFlagValue(defaultValue interface{}, arg string) (interface{}, error) {
 	switch defaultValue.(type) {
@@ -195,4 +167,54 @@ func (s *Stencil) ParseFlags(args []string) error {
 		}
 	}
 	return nil
+}
+
+func (s *Stencil) ShowHelp() {
+	// Setup color functions with conditional disabling
+	if !s.ColoredOutput {
+		color.NoColor = true // Disable color globally if ColoredOutput is false
+	}
+
+	blue := color.New(color.FgBlue).SprintFunc()
+	green := color.New(color.FgGreen).SprintFunc()
+	yellow := color.New(color.FgYellow).SprintFunc()
+
+	appName := blue(s.AppName)
+	fmt.Fprintf(s.Output, "Usage: %s [OPTIONS]\n\n", appName)
+
+	if s.AppDesc != "" {
+		desc := green("Description:")
+		fmt.Fprintf(s.Output, "%s %s\n\n", desc, s.AppDesc)
+	}
+
+	versionSectionPrinted := false
+	printVersionInfo := func(header, value string) {
+		if !versionSectionPrinted {
+			fmt.Fprintln(s.Output, yellow("Version Information:"))
+			versionSectionPrinted = true
+		}
+		fmt.Fprintf(s.Output, "  %s: %s\n", header, value)
+	}
+
+	if s.ShowVersion {
+		printVersionInfo("Version", appVersion)
+	}
+	if s.ShowBuildDate {
+		printVersionInfo("Build Date", appBuildDate)
+	}
+	if s.ShowCommitHash {
+		printVersionInfo("Commit Hash", appCommitHash)
+	}
+	if s.ShowBranch {
+		printVersionInfo("Branch", appBranch)
+	}
+
+	if versionSectionPrinted {
+		fmt.Fprintln(s.Output)
+	}
+
+	fmt.Fprintln(s.Output, yellow("Options:"))
+	for _, flag := range s.flags {
+		fmt.Fprintf(s.Output, "  --%s: %s (default: %v)\n", flag.Name, flag.Usage, flag.Default)
+	}
 }
