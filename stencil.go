@@ -23,6 +23,7 @@ type Option func(*Stencil)
 
 // Flag represents a command-line flag.
 type Flag struct {
+	Short       string
 	Name        string
 	Usage       string
 	Value       interface{}
@@ -68,10 +69,11 @@ type Stencil struct {
 }
 
 // BoolFlag registers a boolean flag.
-func (s *Stencil) BoolFlag(name, usage string, defaultValue bool) *bool {
+func (s *Stencil) BoolFlag(name, short, usage string, defaultValue bool) *bool {
 	value := new(bool)
 	s.flags[name] = &Flag{
 		Name:    name,
+		Short:   short,
 		Usage:   usage,
 		Value:   value,
 		Default: defaultValue,
@@ -87,10 +89,11 @@ func (s *Stencil) BoolFlag(name, usage string, defaultValue bool) *bool {
 }
 
 // StringFlag registers a string flag.
-func (s *Stencil) StringFlag(name, usage string, defaultValue string) *string {
+func (s *Stencil) StringFlag(name, short, usage string, defaultValue string) *string {
 	value := new(string)
 	s.flags[name] = &Flag{
 		Name:    name,
+		Short:   short,
 		Usage:   usage,
 		Value:   value,
 		Default: defaultValue,
@@ -106,10 +109,11 @@ func (s *Stencil) StringFlag(name, usage string, defaultValue string) *string {
 }
 
 // IntFlag registers an integer flag.
-func (s *Stencil) IntFlag(name, usage string, defaultValue int) *int {
+func (s *Stencil) IntFlag(name, short, usage string, defaultValue int) *int {
 	value := new(int)
 	s.flags[name] = &Flag{
 		Name:    name,
+		Short:   short,
 		Usage:   usage,
 		Value:   value,
 		Default: defaultValue,
