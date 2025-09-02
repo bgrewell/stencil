@@ -43,6 +43,7 @@ func NewStencil(opts ...Option) *Stencil {
 		ColoredOutput:  true,
 		Output:         os.Stdout,
 		flags:          make(map[string]*Flag),
+		shortToNames:   make(map[string]string),
 	}
 
 	// apply user options
@@ -67,6 +68,7 @@ type Stencil struct {
 	ColoredOutput  bool
 	Output         io.Writer
 	flags          map[string]*Flag
+	shortToNames   map[string]string
 }
 
 // BoolFlag registers a boolean flag.
@@ -85,6 +87,9 @@ func (s *Stencil) BoolFlag(name, short, usage string, defaultValue bool) *bool {
 			}
 			return errors.New("invalid value type")
 		},
+	}
+	if short != "" {
+		s.shortToNames[short] = name
 	}
 	return value
 }
@@ -106,6 +111,9 @@ func (s *Stencil) StringFlag(name, short, usage string, defaultValue string) *st
 			return errors.New("invalid value type")
 		},
 	}
+	if short != "" {
+		s.shortToNames[short] = name
+	}
 	return value
 }
 
@@ -125,6 +133,9 @@ func (s *Stencil) IntFlag(name, short, usage string, defaultValue int) *int {
 			}
 			return errors.New("invalid value type")
 		},
+	}
+	if short != "" {
+		s.shortToNames[short] = name
 	}
 	return value
 }
@@ -163,6 +174,25 @@ func (s *Stencil) ParseFlags(args []string) error {
 
 			if err := flag.SetFunction(value); err != nil {
 				return fmt.Errorf("failed to set flag --%s: %v", name, err)
+			}
+		} else if strings.HasPrefix(arg, "-") {
+			parts := strings.SplitN(arg[1:], "=", 2)
+			short := parts[0]
+			name := s.shortToNames[short]
+			flag, exists := s.flags[name]
+			if !exists {
+				return fmt.Errorf("unknown flag: -%s", short)
+			}
+
+			var value interface{}
+			if len(parts) == 2 {
+				value, _ = s.convertFlagValue(flag.Default, parts[1])
+			} else {
+				value, _ = s.convertFlagValue(flag.Default, "true")
+			}
+
+			if err := flag.SetFunction(value); err != nil {
+				return fmt.Errorf("failed to set flag -%s: %v", short, err)
 			}
 		}
 	}
