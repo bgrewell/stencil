@@ -1,5 +1,7 @@
 package stencil
 
+import "io"
+
 func WithAppName(name string) Option {
 	return func(s *Stencil) {
 		s.AppName = name
@@ -39,5 +41,11 @@ func WithBranch(show bool) Option {
 func WithColor(colored bool) Option {
 	return func(s *Stencil) {
 		s.ColoredOutput = colored
+	}
+}
+
+func WithOutput(output io.Writer) Option {
+	return func(s *Stencil) {
+		s.Output = output
 	}
 }
