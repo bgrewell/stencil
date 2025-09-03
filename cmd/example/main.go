@@ -1,18 +1,25 @@
+// File: examples/ui_demo/main.go
 package main
 
 import (
 	"fmt"
-	"github.com/bgrewell/stencil"
 	"time"
+
+	"github.com/bgrewell/stencil"
 )
 
 func main() {
-	// Instantiate your helper (spinners & colored output enabled)
-	app := stencil.NewStencil(stencil.WithColor(true))
+	// Create the app (color on; defaults to stdout/stderr; root command auto-created)
+	app := stencil.NewApp(
+		stencil.WithName("ui-demo"),
+		stencil.WithDescription("Stencil UI demo (messages + spinners)"),
+		stencil.WithColorMode(stencil.ColorOn),
+	)
+
 	ui := app.UI
 
 	// 1) Simple messages
-	ui.Info("Starting %s", app.AppName)
+	ui.Info("Starting %s", app.Name)
 
 	// 2) Spinner for setup phase
 	setupSp, err := ui.Task("Preparing build environment")
@@ -24,16 +31,17 @@ func main() {
 	setupSp.Update("Environment ready")
 	setupSp.Complete()
 
-	// 3) Download loop with spinner‑based progress
+	// 3) Download loop with spinner-based progress
 	dlSp, err := ui.Task("Downloading assets")
 	if err != nil {
 		ui.Error("failed to start spinner: %v", err)
 		return
 	}
 	total := int64(100)
-	for got := int64(0); got <= total; got += 1 {
-		time.Sleep(300 * time.Millisecond) // simulate chunk
-		dlSp.Update(fmt.Sprintf("Downloading | Progress %.1f%%", float64(got)/float64(total)*100))
+	for got := int64(0); got <= total; got++ {
+		time.Sleep(75 * time.Millisecond) // simulate chunk
+		pct := float64(got) / float64(total) * 100
+		dlSp.Update(fmt.Sprintf("Downloading | Progress %.1f%%", pct))
 	}
 	dlSp.Complete()
 
