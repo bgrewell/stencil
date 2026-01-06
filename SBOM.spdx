@@ -1,0 +1,152 @@
+SPDXVersion: SPDX-2.3
+DataLicense: CC0-1.0
+SPDXID: SPDXRef-DOCUMENT
+DocumentName: .
+DocumentNamespace: http://trivy.dev/repository/.-08d4a6a5-09da-4560-b916-327d29396b58
+Creator: Organization: aquasecurity
+Creator: Tool: trivy-0.68.2
+Created: 2026-01-06T16:52:56Z
+
+##### Package: go.mod
+
+PackageName: go.mod
+SPDXID: SPDXRef-Application-e90da172ca54b427
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: APPLICATION
+FilesAnalyzed: false
+
+##### Package: github.com/mattn/go-runewidth
+
+PackageName: github.com/mattn/go-runewidth
+SPDXID: SPDXRef-Package-267d3b565fa8bffc
+PackageVersion: v0.0.13
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/mattn/go-runewidth@v0.0.13
+
+##### Package: golang.org/x/sys
+
+PackageName: golang.org/x/sys
+SPDXID: SPDXRef-Package-375e5c515c698c71
+PackageVersion: v0.0.0-20210927094055-39ccf1dd6fa6
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: BSD-3-Clause
+PackageLicenseDeclared: BSD-3-Clause
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/golang.org/x/sys@v0.0.0-20210927094055-39ccf1dd6fa6
+
+##### Package: github.com/theckman/yacspin
+
+PackageName: github.com/theckman/yacspin
+SPDXID: SPDXRef-Package-6e604dd13f82cfa2
+PackageVersion: v0.13.12
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: Apache-2.0
+PackageLicenseDeclared: Apache-2.0
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/theckman/yacspin@v0.13.12
+
+##### Package: github.com/mattn/go-isatty
+
+PackageName: github.com/mattn/go-isatty
+SPDXID: SPDXRef-Package-70e0888b1a45ec7e
+PackageVersion: v0.0.14
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/mattn/go-isatty@v0.0.14
+
+##### Package: github.com/bgrewell/stencil
+
+PackageName: github.com/bgrewell/stencil
+SPDXID: SPDXRef-Package-71251cae671c4e35
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/bgrewell/stencil
+
+##### Package: github.com/mattn/go-colorable
+
+PackageName: github.com/mattn/go-colorable
+SPDXID: SPDXRef-Package-8f80a6b6733d175a
+PackageVersion: v0.1.12
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/mattn/go-colorable@v0.1.12
+
+##### Package: github.com/fatih/color
+
+PackageName: github.com/fatih/color
+SPDXID: SPDXRef-Package-e0f050d59c315d73
+PackageVersion: v1.13.0
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/fatih/color@v1.13.0
+
+##### Package: github.com/rivo/uniseg
+
+PackageName: github.com/rivo/uniseg
+SPDXID: SPDXRef-Package-e25f1e4ad201af3e
+PackageVersion: v0.2.0
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: MIT
+PackageLicenseDeclared: MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/rivo/uniseg@v0.2.0
+
+##### Package: .
+
+PackageName: .
+SPDXID: SPDXRef-Repository-741c5ff31ac42f2e
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: SOURCE
+FilesAnalyzed: false
+
+##### Relationships
+
+Relationship: SPDXRef-Application-e90da172ca54b427 CONTAINS SPDXRef-Package-71251cae671c4e35
+Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Repository-741c5ff31ac42f2e
+Relationship: SPDXRef-Package-267d3b565fa8bffc DEPENDS_ON SPDXRef-Package-e25f1e4ad201af3e
+Relationship: SPDXRef-Package-6e604dd13f82cfa2 DEPENDS_ON SPDXRef-Package-267d3b565fa8bffc
+Relationship: SPDXRef-Package-6e604dd13f82cfa2 DEPENDS_ON SPDXRef-Package-70e0888b1a45ec7e
+Relationship: SPDXRef-Package-6e604dd13f82cfa2 DEPENDS_ON SPDXRef-Package-8f80a6b6733d175a
+Relationship: SPDXRef-Package-6e604dd13f82cfa2 DEPENDS_ON SPDXRef-Package-e0f050d59c315d73
+Relationship: SPDXRef-Package-70e0888b1a45ec7e DEPENDS_ON SPDXRef-Package-375e5c515c698c71
+Relationship: SPDXRef-Package-71251cae671c4e35 DEPENDS_ON SPDXRef-Package-6e604dd13f82cfa2
+Relationship: SPDXRef-Package-8f80a6b6733d175a DEPENDS_ON SPDXRef-Package-70e0888b1a45ec7e
+Relationship: SPDXRef-Package-e0f050d59c315d73 DEPENDS_ON SPDXRef-Package-70e0888b1a45ec7e
+Relationship: SPDXRef-Package-e0f050d59c315d73 DEPENDS_ON SPDXRef-Package-8f80a6b6733d175a
+Relationship: SPDXRef-Repository-741c5ff31ac42f2e CONTAINS SPDXRef-Application-e90da172ca54b427
+

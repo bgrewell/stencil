@@ -1,0 +1,27 @@
+# OpenVEX Document in YAML Format
+# Generated from Trivy security scan
+# https://github.com/openvex/spec
+
+"@context": "https://openvex.dev/ns/v0.2.0"
+"@id": "https://github.com/bgrewell/stencil/security/vex"
+author: "bgrewell"
+role: "Document Creator"
+timestamp: "2026-01-06T16:53:01Z"
+version: 1
+tooling: "trivy + github-actions"
+
+product:
+  "@id": "pkg:golang/bgrewell/stencil"
+  name: "stencil"
+  version: "664826da7334899e40413a1ed762dd3313032032"
+
+# Vulnerability Statements
+# Status values: not_affected, affected, fixed, under_investigation
+statements:
+  - vulnerability:
+      "@id": "CVE-2022-29526"
+      name: "CVE-2022-29526"
+      description: "golang: syscall: faccessat checks wrong group"
+    status: "under_investigation"
+    justification: "Automatically detected by Trivy scan"
+    action_statement: "Review and assess applicability"
