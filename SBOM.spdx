@@ -2,10 +2,10 @@ SPDXVersion: SPDX-2.3
 DataLicense: CC0-1.0
 SPDXID: SPDXRef-DOCUMENT
 DocumentName: .
-DocumentNamespace: http://trivy.dev/repository/.-a4f167c0-3e77-4653-963b-ae09c03992e2
+DocumentNamespace: http://trivy.dev/repository/.-5d1c108b-d238-4151-b927-89c4d311e8ab
 Creator: Organization: aquasecurity
 Creator: Tool: trivy-0.71.0
-Created: 2026-06-10T18:31:50Z
+Created: 2026-06-10T18:44:59Z
 
 ##### Package: go.mod
 
