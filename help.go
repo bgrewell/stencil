@@ -91,6 +91,22 @@ func renderHelp(out io.Writer, info AppInfo, path []*Command) {
 		fmt.Fprintln(out)
 	}
 
+	// Environment Variables (flags that bind to an env var)
+	var envFlags []*Flag
+	for _, f := range merged {
+		if f.Hidden || f.Env == "" {
+			continue
+		}
+		envFlags = append(envFlags, f)
+	}
+	if len(envFlags) > 0 {
+		fmt.Fprintln(out, y("Environment Variables:"))
+		for _, f := range envFlags {
+			fmt.Fprintf(out, "  %s\t%s (sets --%s)\n", f.Env, f.Usage, f.Name)
+		}
+		fmt.Fprintln(out)
+	}
+
 	// Subcommands
 	if len(cur.Sub) > 0 {
 		fmt.Fprintln(out, y("Commands:"))
