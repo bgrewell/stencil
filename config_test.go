@@ -591,3 +591,51 @@ func TestStringArrayManyOccurrences(t *testing.T) {
 		}
 	}
 }
+
+func TestConfigHiddenFlagIgnoresEnv(t *testing.T) {
+	p := writeConfig(t, sampleConfig)
+	t.Setenv("STENCIL_TEST_CONFIG", p)
+	app, cap, errb := newTestApp(t, true)
+	// applyEnv skips hidden flags, so the path scan must too; otherwise the
+	// file would load while the flag still reports its default.
+	app.Root.PersistentFlags.list()[0].Hidden = true
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if cap.flags.Changed("config") || cap.flags.Changed("workers") {
+		t.Fatalf("hidden config flag must ignore env: config=%q workers from %v",
+			cap.flags.String("config"), cap.flags.Source("workers"))
+	}
+
+	// Explicit command-line values still work for a hidden flag.
+	app, cap, errb = newTestApp(t, true)
+	app.Root.PersistentFlags.list()[0].Hidden = true
+	if code := app.Execute([]string{"run", "-c", p}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if cap.flags.String("config") != p || cap.flags.Source("workers") != SourceConfig {
+		t.Fatalf("hidden config flag via argv: config=%q workers from %v",
+			cap.flags.String("config"), cap.flags.Source("workers"))
+	}
+}
+
+func TestConfigFlagNeverBindsToItself(t *testing.T) {
+	p := writeConfig(t, "config: other.yaml\nupf:\n  workers: 4\n")
+	app, cap, errb := newTestApp(t, true)
+	cfg := app.Root.PersistentFlags.list()[0]
+	cfg.ConfigKey = "config"
+	// Resolve the path from the default so no later layer masks a
+	// self-binding overwrite.
+	cfg.Default = p
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	// The reported path and provenance must describe the file actually
+	// loaded, not a value found inside it.
+	if got := cap.flags.String("config"); got != p || cap.flags.Source("config") != SourceDefault {
+		t.Fatalf("config = %q from %v, want %q from default", got, cap.flags.Source("config"), p)
+	}
+	if cap.flags.Int("workers") != 4 {
+		t.Fatalf("workers = %d, want 4", cap.flags.Int("workers"))
+	}
+}

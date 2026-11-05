@@ -83,6 +83,11 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 		if f.ConfigKey == "" || longLkp[f.Name] != f {
 			continue
 		}
+		// The config flag never binds to its own file: the reported path
+		// must always be the file that was actually loaded.
+		if f.Name == app.configFlag {
+			continue
+		}
 		raw, ok := lookupConfigKey(data, f.ConfigKey)
 		if !ok {
 			continue
@@ -101,8 +106,9 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 // with the same token-consumption rules as parseFlags so that values
 // belonging to other flags are never mistaken for options, and keeps the
 // last occurrence to match parseFlags' last-wins semantics. It then falls
-// back to the flag's Env variable, then its default. explicit is true when
-// the path came from argv or the environment.
+// back to the flag's Env variable (unless the flag is hidden, matching
+// applyEnv), then its default. explicit is true when the path came from argv
+// or the environment.
 func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Flag) (path string, explicit bool) {
 	var found bool
 	for i := 0; i < len(argv); {
@@ -165,7 +171,9 @@ func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Fla
 	if found {
 		return path, true
 	}
-	if f.Env != "" {
+	// Honor Env under the same conditions as applyEnv so the resolved flag
+	// value and the loaded file never disagree.
+	if f.Env != "" && !f.Hidden {
 		if v, ok := os.LookupEnv(f.Env); ok && v != "" {
 			return v, true
 		}
