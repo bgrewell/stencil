@@ -236,3 +236,54 @@ func TestLookupConfigKey(t *testing.T) {
 		t.Fatalf("missing key should not resolve")
 	}
 }
+
+func newArrayApp(t *testing.T) (*App, *captured, *bytes.Buffer) {
+	t.Helper()
+	cap := &captured{}
+	fs := NewFlagSet()
+	fs.StringArray("set", "s", "key=value override (repeatable)", nil).Env = "STENCIL_TEST_SET"
+	run := &Command{Name: "run", Flags: fs, Run: func(ctx *Context) error { cap.flags = ctx.Flags; return nil }}
+	root := &Command{Name: "app", Sub: []*Command{run}}
+	var out, errb bytes.Buffer
+	return NewApp(WithName("app"), WithRootCommand(root), WithIO(nil, &out, &errb), WithColorMode(ColorOff)), cap, &errb
+}
+
+func TestStringArrayAccumulatesWithoutSplitting(t *testing.T) {
+	app, cap, errb := newArrayApp(t)
+	argv := []string{"run", "--set", "a.b=[1,2]", "-s", "c=x,y", "--set=d=e"}
+	if code := app.Execute(argv); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	got := cap.flags.StringArray("set")
+	want := []string{"a.b=[1,2]", "c=x,y", "d=e"}
+	if len(got) != len(want) {
+		t.Fatalf("got %q, want %q", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %q, want %q", got, want)
+		}
+	}
+	if cap.flags.Source("set") != SourceFlag {
+		t.Fatalf("source = %v", cap.flags.Source("set"))
+	}
+}
+
+func TestStringArrayFlagReplacesEnv(t *testing.T) {
+	t.Setenv("STENCIL_TEST_SET", "from=env")
+	app, cap, errb := newArrayApp(t)
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.StringArray("set"); len(got) != 1 || got[0] != "from=env" {
+		t.Fatalf("env value: got %q", got)
+	}
+
+	app, cap, errb = newArrayApp(t)
+	if code := app.Execute([]string{"run", "--set", "x=1", "--set", "y=2"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.StringArray("set"); len(got) != 2 || got[0] != "x=1" {
+		t.Fatalf("flags should replace env, then accumulate: got %q", got)
+	}
+}

@@ -17,6 +17,9 @@ const (
 	FlagDuration
 	FlagStringSlice
 	FlagIntSlice
+	// FlagStringArray accumulates one element per command-line occurrence
+	// and never splits on commas (suited to key=value overrides).
+	FlagStringArray
 )
 
 type Flag struct {
@@ -78,6 +81,9 @@ func (fs *FlagSet) Duration(name, short, usage string, def time.Duration) *Flag 
 }
 func (fs *FlagSet) StringSlice(name, short, usage string, def []string) *Flag {
 	return fs.add(&Flag{Type: FlagStringSlice, Name: name, Short: short, Usage: usage, Default: def})
+}
+func (fs *FlagSet) StringArray(name, short, usage string, def []string) *Flag {
+	return fs.add(&Flag{Type: FlagStringArray, Name: name, Short: short, Usage: usage, Default: def})
 }
 func (fs *FlagSet) IntSlice(name, short, usage string, def []int) *Flag {
 	return fs.add(&Flag{Type: FlagIntSlice, Name: name, Short: short, Usage: usage, Default: def})
@@ -182,6 +188,20 @@ func (rf *ResolvedFlags) StringSlice(name string) []string {
 		return append([]string(nil), t...)
 	case string:
 		return csvSplit(t)
+	default:
+		return nil
+	}
+}
+func (rf *ResolvedFlags) StringArray(name string) []string {
+	v, _ := rf.values[name]
+	switch t := v.(type) {
+	case []string:
+		return append([]string(nil), t...)
+	case string:
+		if t == "" {
+			return nil
+		}
+		return []string{t}
 	default:
 		return nil
 	}
@@ -351,6 +371,25 @@ func castValue(f *Flag, v any) (any, error) {
 			return csvSplit(t), nil
 		default:
 			return nil, fmt.Errorf("invalid string slice for --%s", f.Name)
+		}
+	case FlagStringArray:
+		switch t := v.(type) {
+		case []string:
+			return t, nil
+		case []any:
+			out := make([]string, 0, len(t))
+			for _, e := range t {
+				s, ok := e.(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid string in --%s: %v", f.Name, e)
+				}
+				out = append(out, s)
+			}
+			return out, nil
+		case string:
+			return []string{t}, nil
+		default:
+			return nil, fmt.Errorf("invalid string array for --%s", f.Name)
 		}
 	case FlagIntSlice:
 		switch t := v.(type) {

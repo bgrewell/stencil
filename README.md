@@ -95,3 +95,17 @@ The config path is taken from the command line, then the flag's `Env`
 variable, then its default. A missing file is an error only when the path was
 given explicitly (command line or environment). Any `ConfigLoader` can be
 supplied; `YAMLLoader` is provided.
+
+### Repeatable flags
+
+`FlagSet.StringArray` declares a flag that accumulates one element per
+occurrence and never splits on commas, which suits `--set key=value`
+overrides:
+
+```go
+flags.StringArray("set", "", "override a config key (repeatable)", nil)
+// app run --set a.b=[1,2] --set c=x,y  =>  ["a.b=[1,2]", "c=x,y"]
+```
+
+The first command-line occurrence replaces any value from lower layers;
+later occurrences append.

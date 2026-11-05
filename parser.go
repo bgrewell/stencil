@@ -247,8 +247,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 			if err != nil {
 				return values, pos, err
 			}
-			values[f.Name] = casted
-			sources[f.Name] = SourceFlag
+			setFlagValue(f, values, sources, casted)
 			i += consumed
 			continue
 		}
@@ -294,8 +293,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 			if err != nil {
 				return values, pos, err
 			}
-			values[f.Name] = casted
-			sources[f.Name] = SourceFlag
+			setFlagValue(f, values, sources, casted)
 			i += consumed
 			continue
 		}
@@ -327,6 +325,19 @@ func (p *Parser) appInfo() AppInfo {
 		Show:        p.cfg.ShowInfo,
 		Colored:     p.cfg.Colored,
 	}
+}
+
+// setFlagValue stores a command-line value. String arrays accumulate across
+// repeated occurrences; the first occurrence replaces any lower-layer value.
+func setFlagValue(f *Flag, values map[string]any, sources map[string]Source, v any) {
+	if f.Type == FlagStringArray && sources[f.Name] == SourceFlag {
+		prev, _ := values[f.Name].([]string)
+		add, _ := v.([]string)
+		values[f.Name] = append(append([]string(nil), prev...), add...)
+		return
+	}
+	values[f.Name] = v
+	sources[f.Name] = SourceFlag
 }
 
 // small helpers
