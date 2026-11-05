@@ -54,20 +54,16 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 		return nil
 	}
 
-	flags := collectFlags(path)
-	var cfgFlag *Flag
-	for _, f := range flags {
-		if f.Name == app.configFlag {
-			cfgFlag = f
-			break
-		}
-	}
-	if cfgFlag == nil {
+	// Use the effective definitions so a leaf-local config flag that shadows
+	// a persistent one wins, exactly as it does during flag resolution.
+	longLkp, shortLkp := flagLookups(path)
+	cfgFlag, ok := longLkp[app.configFlag]
+	if !ok {
 		// The config flag is not reachable on this command path.
 		return nil
 	}
 
-	cfgPath, explicit := resolveConfigPath(cfgFlag, argv)
+	cfgPath, explicit := resolveConfigPath(cfgFlag, argv, longLkp, shortLkp)
 	if cfgPath == "" {
 		return nil
 	}
@@ -80,7 +76,7 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 		return newUsagef("config: %v", err)
 	}
 
-	for _, f := range flags {
+	for _, f := range collectFlags(path) {
 		if f.ConfigKey == "" {
 			continue
 		}
@@ -99,41 +95,75 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 }
 
 // resolveConfigPath finds the config file path for flag f. It scans argv
-// (stopping at "--"), then the flag's Env variable, then its default.
-// explicit is true when the path came from argv or the environment.
-func resolveConfigPath(f *Flag, argv []string) (path string, explicit bool) {
-	for i := 0; i < len(argv); i++ {
+// with the same token-consumption rules as parseFlags so that values
+// belonging to other flags are never mistaken for options, and keeps the
+// last occurrence to match parseFlags' last-wins semantics. It then falls
+// back to the flag's Env variable, then its default. explicit is true when
+// the path came from argv or the environment.
+func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Flag) (path string, explicit bool) {
+	var found bool
+	for i := 0; i < len(argv); {
 		tok := argv[i]
 		if tok == "--" {
 			break
 		}
-		var body string
-		var match bool
+		var (
+			def      *Flag
+			sval     string
+			hasEq    bool
+			consumed = 1
+		)
 		switch {
 		case strings.HasPrefix(tok, "--"):
-			body = strings.TrimPrefix(tok, "--")
-			name, val, hasEq := splitEq(body)
-			if name != f.Name {
+			var name string
+			name, sval, hasEq = splitEq(strings.TrimPrefix(tok, "--"))
+			if strings.HasPrefix(name, "no-") {
+				if b, ok := longLkp[strings.TrimPrefix(name, "no-")]; ok && b.Type == FlagBool {
+					// --no-<bool> never takes a value.
+					i++
+					continue
+				}
+			}
+			def = longLkp[name]
+		case strings.HasPrefix(tok, "-") && len(tok) > 1:
+			body := strings.TrimPrefix(tok, "-")
+			if !strings.Contains(body, "=") && len(body) > 1 {
+				// Bundled short bools never take a value.
+				i++
 				continue
 			}
-			if hasEq {
-				return val, true
-			}
-			match = true
-		case f.Short != "" && strings.HasPrefix(tok, "-"):
-			body = strings.TrimPrefix(tok, "-")
-			name, val, hasEq := splitEq(body)
-			if name != f.Short {
-				continue
-			}
-			if hasEq {
-				return val, true
-			}
-			match = true
+			var name string
+			name, sval, hasEq = splitEq(body)
+			def = shortLkp[name]
+		default:
+			// Positional.
+			i++
+			continue
 		}
-		if match && i+1 < len(argv) {
-			return argv[i+1], true
+		if def == nil {
+			// Unknown flag; parseFlags will reject it.
+			i++
+			continue
 		}
+		var val string
+		switch {
+		case def.Type == FlagBool && !hasEq:
+			// Bare bool consumes nothing.
+		case hasEq:
+			val = sval
+		case i+1 < len(argv):
+			val = argv[i+1]
+			consumed = 2
+		default:
+			// Missing value; parseFlags will reject it.
+		}
+		if def == f && (hasEq || consumed == 2) {
+			path, found = val, true
+		}
+		i += consumed
+	}
+	if found {
+		return path, true
 	}
 	if f.Env != "" {
 		if v, ok := os.LookupEnv(f.Env); ok && v != "" {

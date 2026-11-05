@@ -287,3 +287,138 @@ func TestStringArrayFlagReplacesEnv(t *testing.T) {
 		t.Fatalf("flags should replace env, then accumulate: got %q", got)
 	}
 }
+
+func TestConfigRepeatedFlagKeepsLast(t *testing.T) {
+	first := writeConfig(t, "upf:\n  workers: 1\n")
+	second := filepath.Join(t.TempDir(), "second.yaml")
+	if err := os.WriteFile(second, []byte("upf:\n  workers: 2\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cases := []struct {
+		name string
+		argv []string
+	}{
+		{"long-eq", []string{"run", "--config=" + first, "--config=" + second}},
+		{"long-space", []string{"run", "--config", first, "--config", second}},
+		{"short", []string{"run", "-c", first, "-c", second}},
+		{"mixed", []string{"run", "-c=" + first, "--config", second}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app, cap, errb := newTestApp(t, true)
+			if code := app.Execute(tc.argv); code != int(ExitOK) {
+				t.Fatalf("exit %d: %s", code, errb.String())
+			}
+			if cap.flags.String("config") != second {
+				t.Fatalf("config flag = %q, want %q", cap.flags.String("config"), second)
+			}
+			if got := cap.flags.Int("workers"); got != 2 || cap.flags.Source("workers") != SourceConfig {
+				t.Fatalf("workers = %d from %v, want 2 from config", got, cap.flags.Source("workers"))
+			}
+		})
+	}
+}
+
+func TestConfigScanSkipsConsumedValues(t *testing.T) {
+	real := writeConfig(t, sampleConfig)
+
+	t.Run("value of another flag is not an option", func(t *testing.T) {
+		app, cap, errb := newTestApp(t, true)
+		argv := []string{"run", "--mode", "--config=phantom.yaml", "-c", real}
+		if code := app.Execute(argv); code != int(ExitOK) {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if got := cap.flags.String("mode"); got != "--config=phantom.yaml" {
+			t.Fatalf("mode = %q", got)
+		}
+		if cap.flags.Source("workers") != SourceConfig {
+			t.Fatalf("real config should have loaded: workers from %v", cap.flags.Source("workers"))
+		}
+	})
+
+	t.Run("short form value is not an option", func(t *testing.T) {
+		app, cap, errb := newTestApp(t, true)
+		if code := app.Execute([]string{"run", "-m", "-c"}); code != int(ExitOK) {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if got := cap.flags.String("mode"); got != "-c" {
+			t.Fatalf("mode = %q", got)
+		}
+		if cap.flags.Changed("workers") {
+			t.Fatalf("no config should have loaded")
+		}
+	})
+
+	t.Run("consumed double-dash does not end scan", func(t *testing.T) {
+		app, cap, errb := newTestApp(t, true)
+		argv := []string{"run", "--mode", "--", "-c", real}
+		if code := app.Execute(argv); code != int(ExitOK) {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if got := cap.flags.String("mode"); got != "--" {
+			t.Fatalf("mode = %q", got)
+		}
+		if cap.flags.Source("workers") != SourceConfig {
+			t.Fatalf("config after consumed -- should load: workers from %v", cap.flags.Source("workers"))
+		}
+	})
+
+	t.Run("unconsumed double-dash ends scan", func(t *testing.T) {
+		app, cap, errb := newTestApp(t, true)
+		argv := []string{"run", "-v", "--", "-c", real}
+		if code := app.Execute(argv); code != int(ExitOK) {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if cap.flags.Changed("workers") {
+			t.Fatalf("config after bare -- must not load")
+		}
+		if len(cap.flags.values) == 0 {
+			t.Fatal("no flags captured")
+		}
+	})
+
+	t.Run("bool forms consume nothing", func(t *testing.T) {
+		app, cap, errb := newTestApp(t, true)
+		argv := []string{"run", "--no-verbose", "-v", "--verbose", "-c", real}
+		if code := app.Execute(argv); code != int(ExitOK) {
+			t.Fatalf("exit %d: %s", code, errb.String())
+		}
+		if cap.flags.Source("workers") != SourceConfig {
+			t.Fatalf("config should load after bool flags: workers from %v", cap.flags.Source("workers"))
+		}
+	})
+}
+
+func TestConfigShadowedFlagUsesLeafDefinition(t *testing.T) {
+	dir := t.TempDir()
+	rootCfg := filepath.Join(dir, "root.yaml")
+	leafCfg := filepath.Join(dir, "leaf.yaml")
+	if err := os.WriteFile(rootCfg, []byte("upf:\n  workers: 10\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(leafCfg, []byte("upf:\n  workers: 20\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	cap := &captured{}
+	persistent := NewFlagSet()
+	persistent.String("config", "c", "config file", rootCfg)
+	local := NewFlagSet()
+	local.String("config", "c", "config file", leafCfg)
+	local.Int("workers", "w", "worker count", 1).ConfigKey = "upf.workers"
+	run := &Command{Name: "run", Flags: local, Run: func(ctx *Context) error { cap.flags = ctx.Flags; return nil }}
+	root := &Command{Name: "app", PersistentFlags: persistent, Sub: []*Command{run}}
+	var out, errb bytes.Buffer
+	app := NewApp(WithName("app"), WithRootCommand(root), WithIO(nil, &out, &errb),
+		WithColorMode(ColorOff), WithConfigFile("config", YAMLLoader))
+
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.String("config"); got != leafCfg {
+		t.Fatalf("resolved config = %q, want leaf default %q", got, leafCfg)
+	}
+	if got := cap.flags.Int("workers"); got != 20 {
+		t.Fatalf("workers = %d, want 20 (from leaf.yaml)", got)
+	}
+}

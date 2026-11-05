@@ -182,14 +182,7 @@ outer:
 
 // parseFlags respects persistent + local flags; supports --no-<boolflag>
 func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]any, sources map[string]Source) (map[string]any, []string, error) {
-	longLkp := map[string]*Flag{}
-	shortLkp := map[string]*Flag{}
-	for _, f := range collectFlags(path) {
-		longLkp[f.Name] = f
-		if f.Short != "" {
-			shortLkp[f.Short] = f
-		}
-	}
+	longLkp, shortLkp := flagLookups(path)
 
 	values := map[string]any{}
 	for k, v := range defaults {
@@ -315,6 +308,21 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 		}
 	}
 	return values, pos, nil
+}
+
+// flagLookups builds the effective long- and short-name lookup tables for a
+// command path. Definitions are visited root-to-leaf so a leaf-local flag
+// shadows a persistent flag of the same name, matching mergeFlagDefaults.
+func flagLookups(path []*Command) (long, short map[string]*Flag) {
+	long = map[string]*Flag{}
+	short = map[string]*Flag{}
+	for _, f := range collectFlags(path) {
+		long[f.Name] = f
+		if f.Short != "" {
+			short[f.Short] = f
+		}
+	}
+	return long, short
 }
 
 func (p *Parser) appInfo() AppInfo {
