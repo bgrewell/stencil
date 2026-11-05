@@ -209,15 +209,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 		if strings.HasPrefix(tok, "--") {
 			body := strings.TrimPrefix(tok, "--")
 			name, sval, hasEq := splitEq(body)
-
-			// support --no-flag for bools
-			neg := false
-			if strings.HasPrefix(name, "no-") {
-				neg = true
-				name = strings.TrimPrefix(name, "no-")
-			}
-
-			f, ok := longLkp[name]
+			f, name, neg, ok := lookupLong(longLkp, name)
 			if !ok {
 				return values, pos, newUsagef("unknown flag: --%s", name)
 			}
@@ -310,6 +302,21 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 	return values, pos, nil
 }
 
+// lookupLong resolves a long flag name against the effective definitions,
+// normalizing a "no-" prefix the same way for every flag type so that every
+// argv scanner agrees on which definition a token refers to and whether it
+// consumes a value. It returns the definition, the normalized name, and
+// whether the prefix was present.
+func lookupLong(longLkp map[string]*Flag, name string) (f *Flag, norm string, neg bool, ok bool) {
+	norm = name
+	if strings.HasPrefix(norm, "no-") {
+		neg = true
+		norm = strings.TrimPrefix(norm, "no-")
+	}
+	f, ok = longLkp[norm]
+	return f, norm, neg, ok
+}
+
 // flagLookups builds the effective long- and short-name lookup tables for a
 // command path. Definitions are visited root-to-leaf so a leaf-local flag
 // shadows a persistent flag of the same name, matching mergeFlagDefaults.
@@ -336,12 +343,14 @@ func (p *Parser) appInfo() AppInfo {
 }
 
 // setFlagValue stores a command-line value. String arrays accumulate across
-// repeated occurrences; the first occurrence replaces any lower-layer value.
+// repeated occurrences; the first occurrence replaces any lower-layer value
+// with a freshly cast slice that the parser owns, so later occurrences can
+// append in place without copying.
 func setFlagValue(f *Flag, values map[string]any, sources map[string]Source, v any) {
 	if f.Type == FlagStringArray && sources[f.Name] == SourceFlag {
 		prev, _ := values[f.Name].([]string)
 		add, _ := v.([]string)
-		values[f.Name] = append(append([]string(nil), prev...), add...)
+		values[f.Name] = append(prev, add...)
 		return
 	}
 	values[f.Name] = v

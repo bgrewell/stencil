@@ -2,6 +2,7 @@ package stencil
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -458,5 +459,135 @@ func TestConfigShadowedBindingIgnored(t *testing.T) {
 	}
 	if got := cap.flags.Int("workers"); got != 1 {
 		t.Fatalf("workers = %d, want 1", got)
+	}
+}
+
+func TestConfigScanNormalizesNoPrefix(t *testing.T) {
+	real := writeConfig(t, sampleConfig)
+	app, cap, errb := newTestApp(t, true)
+	// parseFlags strips "no-" for every long flag, so --no-mode is the
+	// string flag "mode" and consumes the following token.
+	argv := []string{"run", "--config=" + real, "--no-mode", "--config=phantom.yaml"}
+	if code := app.Execute(argv); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.String("mode"); got != "--config=phantom.yaml" {
+		t.Fatalf("mode = %q", got)
+	}
+	if got := cap.flags.String("config"); got != real {
+		t.Fatalf("config = %q, want %q", got, real)
+	}
+	if cap.flags.Source("workers") != SourceConfig {
+		t.Fatalf("real config should have loaded: workers from %v", cap.flags.Source("workers"))
+	}
+}
+
+// newShadowedConfigApp builds an app whose leaf redefines the persistent
+// "config" flag. leafShort and the Env bindings let tests vary the shape of
+// the shadowing.
+func newShadowedConfigApp(t *testing.T, rootDef, leafDef, leafShort, rootEnv, leafEnv string) (*App, *captured, *bytes.Buffer) {
+	t.Helper()
+	cap := &captured{}
+	persistent := NewFlagSet()
+	persistent.String("config", "c", "config file", rootDef).Env = rootEnv
+	local := NewFlagSet()
+	local.String("config", leafShort, "config file", leafDef).Env = leafEnv
+	local.Int("workers", "w", "worker count", 1).ConfigKey = "upf.workers"
+	run := &Command{Name: "run", Flags: local, Run: func(ctx *Context) error { cap.flags = ctx.Flags; return nil }}
+	root := &Command{Name: "app", PersistentFlags: persistent, Sub: []*Command{run}}
+	var out, errb bytes.Buffer
+	app := NewApp(WithName("app"), WithRootCommand(root), WithIO(nil, &out, &errb),
+		WithColorMode(ColorOff), WithConfigFile("config", YAMLLoader))
+	return app, cap, &errb
+}
+
+func TestConfigInheritedShortFormSelectsLeafFlag(t *testing.T) {
+	dir := t.TempDir()
+	leafDef := filepath.Join(dir, "leaf.yaml")
+	chosen := filepath.Join(dir, "chosen.yaml")
+	if err := os.WriteFile(leafDef, []byte("upf:\n  workers: 20\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(chosen, []byte("upf:\n  workers: 30\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	// The leaf redefines config without a short form; the inherited -c
+	// still sets "config" during parsing, so it must select the file too.
+	app, cap, errb := newShadowedConfigApp(t, "", leafDef, "", "", "")
+	if code := app.Execute([]string{"run", "-c", chosen}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.String("config"); got != chosen {
+		t.Fatalf("config = %q, want %q", got, chosen)
+	}
+	if got := cap.flags.Int("workers"); got != 30 {
+		t.Fatalf("workers = %d, want 30 (from chosen.yaml)", got)
+	}
+
+	// An explicitly requested missing file via the inherited -c is an error,
+	// not a silent fall back to the leaf default.
+	app, _, errb = newShadowedConfigApp(t, "", leafDef, "", "", "")
+	if code := app.Execute([]string{"run", "-c", filepath.Join(dir, "nope.yaml")}); code != int(ExitUsage) {
+		t.Fatalf("expected usage exit for missing explicit config, got %d: %s", code, errb.String())
+	}
+}
+
+func TestEnvUsesEffectiveDefinition(t *testing.T) {
+	dir := t.TempDir()
+	rootCfg := filepath.Join(dir, "root.yaml")
+	leafCfg := filepath.Join(dir, "leaf.yaml")
+	if err := os.WriteFile(rootCfg, []byte("upf:\n  workers: 10\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(leafCfg, []byte("upf:\n  workers: 20\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("STENCIL_TEST_ROOT_CONFIG", rootCfg)
+	t.Setenv("STENCIL_TEST_LEAF_CONFIG", leafCfg)
+
+	app, cap, errb := newShadowedConfigApp(t, "", "", "c", "STENCIL_TEST_ROOT_CONFIG", "STENCIL_TEST_LEAF_CONFIG")
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	// The resolved value, its provenance, and the file actually loaded must
+	// all come from the leaf definition.
+	if got := cap.flags.String("config"); got != leafCfg || cap.flags.Source("config") != SourceEnv {
+		t.Fatalf("config = %q from %v, want %q from env", got, cap.flags.Source("config"), leafCfg)
+	}
+	if got := cap.flags.Int("workers"); got != 20 {
+		t.Fatalf("workers = %d, want 20 (from leaf.yaml)", got)
+	}
+
+	// A shadowed persistent Env binding must not apply when the leaf has none.
+	app, cap, errb = newShadowedConfigApp(t, "", "", "c", "STENCIL_TEST_ROOT_CONFIG", "")
+	if code := app.Execute([]string{"run"}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if cap.flags.Changed("config") || cap.flags.Changed("workers") {
+		t.Fatalf("shadowed env binding applied: config=%q workers=%d", cap.flags.String("config"), cap.flags.Int("workers"))
+	}
+}
+
+func TestStringArrayManyOccurrences(t *testing.T) {
+	app, cap, errb := newArrayApp(t)
+	argv := []string{"run"}
+	want := make([]string, 0, 200)
+	for i := 0; i < 200; i++ {
+		v := fmt.Sprintf("k%d=v%d", i, i)
+		argv = append(argv, "--set", v)
+		want = append(want, v)
+	}
+	if code := app.Execute(argv); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	got := cap.flags.StringArray("set")
+	if len(got) != len(want) {
+		t.Fatalf("got %d values, want %d", len(got), len(want))
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("index %d: got %q, want %q", i, got[i], want[i])
+		}
 	}
 }

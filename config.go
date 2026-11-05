@@ -114,20 +114,14 @@ func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Fla
 			def      *Flag
 			sval     string
 			hasEq    bool
+			neg      bool
 			consumed = 1
 		)
 		switch {
 		case strings.HasPrefix(tok, "--"):
 			var name string
 			name, sval, hasEq = splitEq(strings.TrimPrefix(tok, "--"))
-			if strings.HasPrefix(name, "no-") {
-				if b, ok := longLkp[strings.TrimPrefix(name, "no-")]; ok && b.Type == FlagBool {
-					// --no-<bool> never takes a value.
-					i++
-					continue
-				}
-			}
-			def = longLkp[name]
+			def, _, neg, _ = lookupLong(longLkp, name)
 		case strings.HasPrefix(tok, "-") && len(tok) > 1:
 			body := strings.TrimPrefix(tok, "-")
 			if !strings.Contains(body, "=") && len(body) > 1 {
@@ -150,8 +144,8 @@ func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Fla
 		}
 		var val string
 		switch {
-		case def.Type == FlagBool && !hasEq:
-			// Bare bool consumes nothing.
+		case def.Type == FlagBool && (neg || !hasEq):
+			// Bare or negated bool consumes nothing.
 		case hasEq:
 			val = sval
 		case i+1 < len(argv):
@@ -160,7 +154,10 @@ func resolveConfigPath(f *Flag, argv []string, longLkp, shortLkp map[string]*Fla
 		default:
 			// Missing value; parseFlags will reject it.
 		}
-		if def == f && (hasEq || consumed == 2) {
+		// Compare canonical names rather than pointers: an inherited short
+		// form may still resolve to a shadowed definition, but parseFlags
+		// stores it under the same name.
+		if def.Name == f.Name && (hasEq || consumed == 2) {
 			path, found = val, true
 		}
 		i += consumed

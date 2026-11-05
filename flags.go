@@ -247,40 +247,19 @@ func mergeFlagDefaults(path []*Command) (map[string]any, map[string]Source) {
 	return out, src
 }
 
-// Apply env on top of defaults if Env is set
+// applyEnv applies environment values on top of defaults. Only the effective
+// definition for each flag name is consulted, so a leaf-local flag shadows a
+// persistent one exactly as it does for defaults, config, and the command
+// line.
 func applyEnv(path []*Command, values map[string]any, sources map[string]Source) {
-	seen := map[string]struct{}{}
-	for _, c := range path {
-		if c.PersistentFlags != nil {
-			for _, f := range c.PersistentFlags.list() {
-				if f.Env == "" || f.Hidden {
-					continue
-				}
-				if _, ok := seen[f.Name]; ok {
-					continue
-				}
-				if v, ok := os.LookupEnv(f.Env); ok && v != "" {
-					values[f.Name] = v
-					sources[f.Name] = SourceEnv
-				}
-				seen[f.Name] = struct{}{}
-			}
+	longLkp, _ := flagLookups(path)
+	for _, f := range collectFlags(path) {
+		if f.Env == "" || f.Hidden || longLkp[f.Name] != f {
+			continue
 		}
-	}
-	leaf := path[len(path)-1]
-	if leaf.Flags != nil {
-		for _, f := range leaf.Flags.list() {
-			if f.Env == "" || f.Hidden {
-				continue
-			}
-			if _, ok := seen[f.Name]; ok {
-				continue
-			}
-			if v, ok := os.LookupEnv(f.Env); ok && v != "" {
-				values[f.Name] = v
-				sources[f.Name] = SourceEnv
-			}
-			seen[f.Name] = struct{}{}
+		if v, ok := os.LookupEnv(f.Env); ok && v != "" {
+			values[f.Name] = v
+			sources[f.Name] = SourceEnv
 		}
 	}
 }
