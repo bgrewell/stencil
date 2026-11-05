@@ -68,12 +68,17 @@ func (p *Parser) Execute(argv []string) int {
 	}
 
 	// Merged defaults
-	values := mergeFlagDefaults(path)
+	values, sources := mergeFlagDefaults(path)
+	// Apply config file values if configured
+	if err := p.applyConfig(path, rest, values, sources); err != nil {
+		fmt.Fprintln(p.cfg.Err, err.Error())
+		return int(ExitUsage)
+	}
 	// Apply env if set
-	applyEnv(path, values)
+	applyEnv(path, values, sources)
 
 	// Parse flags and positionals
-	vals, pos, err := p.parseFlags(path, rest, values)
+	vals, pos, err := p.parseFlags(path, rest, values, sources)
 	if err != nil {
 		fmt.Fprintln(p.cfg.Err, err.Error())
 		renderHelp(p.cfg.Out, p.appInfo(), path)
@@ -105,7 +110,7 @@ func (p *Parser) Execute(argv []string) int {
 		App:   p.cfg.App,
 		Path:  path,
 		Args:  pos,
-		Flags: &ResolvedFlags{values: vals},
+		Flags: &ResolvedFlags{values: vals, sources: sources},
 	}
 
 	// Hooks: PersistentPreRun (root→leaf), PreRun(leaf), Run, PostRun(leaf), PersistentPostRun (leaf→root)
@@ -176,15 +181,8 @@ outer:
 }
 
 // parseFlags respects persistent + local flags; supports --no-<boolflag>
-func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]any) (map[string]any, []string, error) {
-	longLkp := map[string]*Flag{}
-	shortLkp := map[string]*Flag{}
-	for _, f := range collectFlags(path) {
-		longLkp[f.Name] = f
-		if f.Short != "" {
-			shortLkp[f.Short] = f
-		}
-	}
+func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]any, sources map[string]Source) (map[string]any, []string, error) {
+	longLkp, shortLkp := flagLookups(path)
 
 	values := map[string]any{}
 	for k, v := range defaults {
@@ -211,15 +209,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 		if strings.HasPrefix(tok, "--") {
 			body := strings.TrimPrefix(tok, "--")
 			name, sval, hasEq := splitEq(body)
-
-			// support --no-flag for bools
-			neg := false
-			if strings.HasPrefix(name, "no-") {
-				neg = true
-				name = strings.TrimPrefix(name, "no-")
-			}
-
-			f, ok := longLkp[name]
+			f, name, neg, ok := lookupLong(longLkp, name)
 			if !ok {
 				return values, pos, newUsagef("unknown flag: --%s", name)
 			}
@@ -242,7 +232,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 			if err != nil {
 				return values, pos, err
 			}
-			values[f.Name] = casted
+			setFlagValue(f, values, sources, casted)
 			i += consumed
 			continue
 		}
@@ -260,6 +250,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 						return values, pos, newUsagef("flag -%s requires a value", ch)
 					}
 					values[f.Name] = true
+					sources[f.Name] = SourceFlag
 				}
 				i++
 				continue
@@ -287,7 +278,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 			if err != nil {
 				return values, pos, err
 			}
-			values[f.Name] = casted
+			setFlagValue(f, values, sources, casted)
 			i += consumed
 			continue
 		}
@@ -311,6 +302,36 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 	return values, pos, nil
 }
 
+// lookupLong resolves a long flag name against the effective definitions,
+// normalizing a "no-" prefix the same way for every flag type so that every
+// argv scanner agrees on which definition a token refers to and whether it
+// consumes a value. It returns the definition, the normalized name, and
+// whether the prefix was present.
+func lookupLong(longLkp map[string]*Flag, name string) (f *Flag, norm string, neg bool, ok bool) {
+	norm = name
+	if strings.HasPrefix(norm, "no-") {
+		neg = true
+		norm = strings.TrimPrefix(norm, "no-")
+	}
+	f, ok = longLkp[norm]
+	return f, norm, neg, ok
+}
+
+// flagLookups builds the effective long- and short-name lookup tables for a
+// command path. Definitions are visited root-to-leaf so a leaf-local flag
+// shadows a persistent flag of the same name, matching mergeFlagDefaults.
+func flagLookups(path []*Command) (long, short map[string]*Flag) {
+	long = map[string]*Flag{}
+	short = map[string]*Flag{}
+	for _, f := range collectFlags(path) {
+		long[f.Name] = f
+		if f.Short != "" {
+			short[f.Short] = f
+		}
+	}
+	return long, short
+}
+
 func (p *Parser) appInfo() AppInfo {
 	return AppInfo{
 		Name:        p.cfg.App.Name,
@@ -319,6 +340,21 @@ func (p *Parser) appInfo() AppInfo {
 		Show:        p.cfg.ShowInfo,
 		Colored:     p.cfg.Colored,
 	}
+}
+
+// setFlagValue stores a command-line value. String arrays accumulate across
+// repeated occurrences; the first occurrence replaces any lower-layer value
+// with a freshly cast slice that the parser owns, so later occurrences can
+// append in place without copying.
+func setFlagValue(f *Flag, values map[string]any, sources map[string]Source, v any) {
+	if f.Type == FlagStringArray && sources[f.Name] == SourceFlag {
+		prev, _ := values[f.Name].([]string)
+		add, _ := v.([]string)
+		values[f.Name] = append(prev, add...)
+		return
+	}
+	values[f.Name] = v
+	sources[f.Name] = SourceFlag
 }
 
 // small helpers

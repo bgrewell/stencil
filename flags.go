@@ -17,6 +17,9 @@ const (
 	FlagDuration
 	FlagStringSlice
 	FlagIntSlice
+	// FlagStringArray accumulates one element per command-line occurrence
+	// and never splits on commas (suited to key=value overrides).
+	FlagStringArray
 )
 
 type Flag struct {
@@ -30,6 +33,10 @@ type Flag struct {
 	Enum     []string        // allowed values (for strings)
 	Validate func(any) error // per-flag custom validation
 	Hidden   bool
+
+	// ConfigKey is an optional dotted path (e.g. "server.port") that binds the
+	// flag to a value in the config file loaded via WithConfigFile.
+	ConfigKey string
 }
 
 type FlagSet struct {
@@ -75,6 +82,9 @@ func (fs *FlagSet) Duration(name, short, usage string, def time.Duration) *Flag 
 func (fs *FlagSet) StringSlice(name, short, usage string, def []string) *Flag {
 	return fs.add(&Flag{Type: FlagStringSlice, Name: name, Short: short, Usage: usage, Default: def})
 }
+func (fs *FlagSet) StringArray(name, short, usage string, def []string) *Flag {
+	return fs.add(&Flag{Type: FlagStringArray, Name: name, Short: short, Usage: usage, Default: def})
+}
 func (fs *FlagSet) IntSlice(name, short, usage string, def []int) *Flag {
 	return fs.add(&Flag{Type: FlagIntSlice, Name: name, Short: short, Usage: usage, Default: def})
 }
@@ -85,8 +95,47 @@ func (fs *FlagSet) getLong(n string) (*Flag, bool)   { f, ok := fs.byLong[n]; re
 func (fs *FlagSet) getShort(sh string) (*Flag, bool) { f, ok := fs.bySh[sh]; return f, ok }
 
 // ResolvedFlags is the merged, final view.
+// Source identifies the layer that supplied a resolved flag value.
+// Layers are applied in ascending order: default < config < env < flag.
+type Source int
+
+const (
+	SourceDefault Source = iota
+	SourceConfig
+	SourceEnv
+	SourceFlag
+)
+
+func (s Source) String() string {
+	switch s {
+	case SourceDefault:
+		return "default"
+	case SourceConfig:
+		return "config"
+	case SourceEnv:
+		return "env"
+	case SourceFlag:
+		return "flag"
+	default:
+		return "unknown"
+	}
+}
+
 type ResolvedFlags struct {
-	values map[string]any
+	values  map[string]any
+	sources map[string]Source
+}
+
+// Source reports which layer supplied the value of the named flag.
+// Unknown flags report SourceDefault.
+func (rf *ResolvedFlags) Source(name string) Source {
+	return rf.sources[name]
+}
+
+// Changed reports whether the named flag was set by any layer other than its
+// declared default (config file, environment variable, or command line).
+func (rf *ResolvedFlags) Changed(name string) bool {
+	return rf.Source(name) != SourceDefault
 }
 
 func (rf *ResolvedFlags) Bool(name string) bool {
@@ -143,6 +192,20 @@ func (rf *ResolvedFlags) StringSlice(name string) []string {
 		return nil
 	}
 }
+func (rf *ResolvedFlags) StringArray(name string) []string {
+	v, _ := rf.values[name]
+	switch t := v.(type) {
+	case []string:
+		return append([]string(nil), t...)
+	case string:
+		if t == "" {
+			return nil
+		}
+		return []string{t}
+	default:
+		return nil
+	}
+}
 func (rf *ResolvedFlags) IntSlice(name string) []int {
 	v, _ := rf.values[name]
 	switch t := v.(type) {
@@ -161,13 +224,16 @@ func (rf *ResolvedFlags) IntSlice(name string) []int {
 }
 func (rf *ResolvedFlags) Get(name string) (any, bool) { v, ok := rf.values[name]; return v, ok }
 
-// Merge defaults across path (persistent) and leaf locals
-func mergeFlagDefaults(path []*Command) map[string]any {
+// Merge defaults across path (persistent) and leaf locals. Every flag starts
+// with SourceDefault provenance.
+func mergeFlagDefaults(path []*Command) (map[string]any, map[string]Source) {
 	out := map[string]any{}
+	src := map[string]Source{}
 	for _, c := range path {
 		if c.PersistentFlags != nil {
 			for _, f := range c.PersistentFlags.list() {
 				out[f.Name] = f.Default
+				src[f.Name] = SourceDefault
 			}
 		}
 	}
@@ -175,43 +241,25 @@ func mergeFlagDefaults(path []*Command) map[string]any {
 	if leaf.Flags != nil {
 		for _, f := range leaf.Flags.list() {
 			out[f.Name] = f.Default
+			src[f.Name] = SourceDefault
 		}
 	}
-	return out
+	return out, src
 }
 
-// Apply env on top of defaults if Env is set
-func applyEnv(path []*Command, values map[string]any) {
-	seen := map[string]struct{}{}
-	for _, c := range path {
-		if c.PersistentFlags != nil {
-			for _, f := range c.PersistentFlags.list() {
-				if f.Env == "" || f.Hidden {
-					continue
-				}
-				if _, ok := seen[f.Name]; ok {
-					continue
-				}
-				if v, ok := os.LookupEnv(f.Env); ok && v != "" {
-					values[f.Name] = v
-				}
-				seen[f.Name] = struct{}{}
-			}
+// applyEnv applies environment values on top of defaults. Only the effective
+// definition for each flag name is consulted, so a leaf-local flag shadows a
+// persistent one exactly as it does for defaults, config, and the command
+// line.
+func applyEnv(path []*Command, values map[string]any, sources map[string]Source) {
+	longLkp, _ := flagLookups(path)
+	for _, f := range collectFlags(path) {
+		if f.Env == "" || f.Hidden || longLkp[f.Name] != f {
+			continue
 		}
-	}
-	leaf := path[len(path)-1]
-	if leaf.Flags != nil {
-		for _, f := range leaf.Flags.list() {
-			if f.Env == "" || f.Hidden {
-				continue
-			}
-			if _, ok := seen[f.Name]; ok {
-				continue
-			}
-			if v, ok := os.LookupEnv(f.Env); ok && v != "" {
-				values[f.Name] = v
-			}
-			seen[f.Name] = struct{}{}
+		if v, ok := os.LookupEnv(f.Env); ok && v != "" {
+			values[f.Name] = v
+			sources[f.Name] = SourceEnv
 		}
 	}
 }
@@ -288,15 +336,54 @@ func castValue(f *Flag, v any) (any, error) {
 		switch t := v.(type) {
 		case []string:
 			return t, nil
+		case []any:
+			out := make([]string, 0, len(t))
+			for _, e := range t {
+				s, ok := e.(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid string in --%s: %v", f.Name, e)
+				}
+				out = append(out, s)
+			}
+			return out, nil
 		case string:
 			return csvSplit(t), nil
 		default:
 			return nil, fmt.Errorf("invalid string slice for --%s", f.Name)
 		}
+	case FlagStringArray:
+		switch t := v.(type) {
+		case []string:
+			return t, nil
+		case []any:
+			out := make([]string, 0, len(t))
+			for _, e := range t {
+				s, ok := e.(string)
+				if !ok {
+					return nil, fmt.Errorf("invalid string in --%s: %v", f.Name, e)
+				}
+				out = append(out, s)
+			}
+			return out, nil
+		case string:
+			return []string{t}, nil
+		default:
+			return nil, fmt.Errorf("invalid string array for --%s", f.Name)
+		}
 	case FlagIntSlice:
 		switch t := v.(type) {
 		case []int:
 			return t, nil
+		case []any:
+			out := make([]int, 0, len(t))
+			for _, e := range t {
+				i, ok := e.(int)
+				if !ok {
+					return nil, fmt.Errorf("invalid int in --%s: %v", f.Name, e)
+				}
+				out = append(out, i)
+			}
+			return out, nil
 		case string:
 			raw := csvSplit(t)
 			out := make([]int, 0, len(raw))

@@ -38,6 +38,10 @@ type App struct {
 	UI          ui.UI
 
 	Root *Command
+
+	// Config file layer (see WithConfigFile).
+	configFlag   string
+	configLoader ConfigLoader
 }
 
 type Option func(*App)

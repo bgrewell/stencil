@@ -45,3 +45,67 @@ go build -ldflags "\
   -X 'github.com/bgrewell/stencil.appCommitHash=abc1234' \
   -X 'github.com/bgrewell/stencil.appBranch=main'"
 ```
+## Config Files and Value Provenance
+
+Flag values resolve in layers, lowest to highest:
+
+1. the flag's declared `Default`
+2. the config file (opt-in, see below)
+3. the flag's `Env` variable
+4. the command line
+
+### Provenance
+
+`ctx.Flags.Source(name)` reports which layer supplied a value
+(`SourceDefault`, `SourceConfig`, `SourceEnv`, `SourceFlag`), and
+`ctx.Flags.Changed(name)` is true for anything other than the default. This
+lets an application overlay only the values a user actually supplied onto its
+own configuration.
+
+### Config file layer
+
+Enable it with `WithConfigFile`, naming the String flag that carries the path,
+and bind individual flags to dotted keys with `ConfigKey`:
+
+```go
+persistent := stencil.NewFlagSet()
+cfg := persistent.String("config", "c", "path to config file", "app.yaml")
+cfg.Env = "APP_CONFIG"
+
+flags := stencil.NewFlagSet()
+flags.Int("workers", "w", "worker count", 1).ConfigKey = "server.workers"
+
+app := stencil.NewApp(
+    stencil.WithName("app"),
+    stencil.WithRootCommand(&stencil.Command{
+        Name: "app", PersistentFlags: persistent,
+        Sub: []*stencil.Command{{Name: "run", Flags: flags, Run: run}},
+    }),
+    stencil.WithConfigFile("config", stencil.YAMLLoader),
+)
+```
+
+```yaml
+# app.yaml
+server:
+  workers: 4
+```
+
+The config path is taken from the command line, then the flag's `Env`
+variable, then its default. A missing file is an error only when the path was
+given explicitly (command line or environment). Any `ConfigLoader` can be
+supplied; `YAMLLoader` is provided.
+
+### Repeatable flags
+
+`FlagSet.StringArray` declares a flag that accumulates one element per
+occurrence and never splits on commas, which suits `--set key=value`
+overrides:
+
+```go
+flags.StringArray("set", "", "override a config key (repeatable)", nil)
+// app run --set a.b=[1,2] --set c=x,y  =>  ["a.b=[1,2]", "c=x,y"]
+```
+
+The first command-line occurrence replaces any value from lower layers;
+later occurrences append.
