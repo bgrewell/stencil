@@ -68,12 +68,17 @@ func (p *Parser) Execute(argv []string) int {
 	}
 
 	// Merged defaults
-	values := mergeFlagDefaults(path)
+	values, sources := mergeFlagDefaults(path)
+	// Apply config file values if configured
+	if err := p.applyConfig(path, rest, values, sources); err != nil {
+		fmt.Fprintln(p.cfg.Err, err.Error())
+		return int(ExitUsage)
+	}
 	// Apply env if set
-	applyEnv(path, values)
+	applyEnv(path, values, sources)
 
 	// Parse flags and positionals
-	vals, pos, err := p.parseFlags(path, rest, values)
+	vals, pos, err := p.parseFlags(path, rest, values, sources)
 	if err != nil {
 		fmt.Fprintln(p.cfg.Err, err.Error())
 		renderHelp(p.cfg.Out, p.appInfo(), path)
@@ -105,7 +110,7 @@ func (p *Parser) Execute(argv []string) int {
 		App:   p.cfg.App,
 		Path:  path,
 		Args:  pos,
-		Flags: &ResolvedFlags{values: vals},
+		Flags: &ResolvedFlags{values: vals, sources: sources},
 	}
 
 	// Hooks: PersistentPreRun (root→leaf), PreRun(leaf), Run, PostRun(leaf), PersistentPostRun (leaf→root)
@@ -176,7 +181,7 @@ outer:
 }
 
 // parseFlags respects persistent + local flags; supports --no-<boolflag>
-func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]any) (map[string]any, []string, error) {
+func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]any, sources map[string]Source) (map[string]any, []string, error) {
 	longLkp := map[string]*Flag{}
 	shortLkp := map[string]*Flag{}
 	for _, f := range collectFlags(path) {
@@ -243,6 +248,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 				return values, pos, err
 			}
 			values[f.Name] = casted
+			sources[f.Name] = SourceFlag
 			i += consumed
 			continue
 		}
@@ -260,6 +266,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 						return values, pos, newUsagef("flag -%s requires a value", ch)
 					}
 					values[f.Name] = true
+					sources[f.Name] = SourceFlag
 				}
 				i++
 				continue
@@ -288,6 +295,7 @@ func (p *Parser) parseFlags(path []*Command, argv []string, defaults map[string]
 				return values, pos, err
 			}
 			values[f.Name] = casted
+			sources[f.Name] = SourceFlag
 			i += consumed
 			continue
 		}
