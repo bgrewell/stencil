@@ -422,3 +422,41 @@ func TestConfigShadowedFlagUsesLeafDefinition(t *testing.T) {
 		t.Fatalf("workers = %d, want 20 (from leaf.yaml)", got)
 	}
 }
+
+func TestConfigShadowedBindingIgnored(t *testing.T) {
+	p := writeConfig(t, "root:\n  workers: 4\nleaf:\n  workers: lots\n")
+
+	cap := &captured{}
+	persistent := NewFlagSet()
+	persistent.String("config", "c", "config file", "")
+	persistent.Int("workers", "", "root workers", 2).ConfigKey = "root.workers"
+	local := NewFlagSet()
+	local.Int("workers", "w", "leaf workers", 1)
+	run := &Command{Name: "run", Flags: local, Run: func(ctx *Context) error { cap.flags = ctx.Flags; return nil }}
+	root := &Command{Name: "app", PersistentFlags: persistent, Sub: []*Command{run}}
+	var out, errb bytes.Buffer
+	app := NewApp(WithName("app"), WithRootCommand(root), WithIO(nil, &out, &errb),
+		WithColorMode(ColorOff), WithConfigFile("config", YAMLLoader))
+
+	// The leaf definition has no ConfigKey, so the shadowed persistent
+	// binding must not populate it.
+	if code := app.Execute([]string{"run", "-c", p}); code != int(ExitOK) {
+		t.Fatalf("exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.Int("workers"); got != 1 || cap.flags.Source("workers") != SourceDefault {
+		t.Fatalf("workers = %d from %v, want 1 from default", got, cap.flags.Source("workers"))
+	}
+
+	// A shadowed binding with an invalid value must not invalidate the
+	// invocation either.
+	local.list()[0].ConfigKey = ""
+	persistent.list()[1].ConfigKey = "leaf.workers"
+	app = NewApp(WithName("app"), WithRootCommand(root), WithIO(nil, &out, &errb),
+		WithColorMode(ColorOff), WithConfigFile("config", YAMLLoader))
+	if code := app.Execute([]string{"run", "-c", p}); code != int(ExitOK) {
+		t.Fatalf("shadowed bad value should be ignored: exit %d: %s", code, errb.String())
+	}
+	if got := cap.flags.Int("workers"); got != 1 {
+		t.Fatalf("workers = %d, want 1", got)
+	}
+}

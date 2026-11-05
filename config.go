@@ -77,7 +77,10 @@ func (p *Parser) applyConfig(path []*Command, argv []string, values map[string]a
 	}
 
 	for _, f := range collectFlags(path) {
-		if f.ConfigKey == "" {
+		// Only the effective definition may bind to the config file; a
+		// shadowed persistent flag must not populate or invalidate the
+		// leaf's value.
+		if f.ConfigKey == "" || longLkp[f.Name] != f {
 			continue
 		}
 		raw, ok := lookupConfigKey(data, f.ConfigKey)
