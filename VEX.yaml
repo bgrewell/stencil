@@ -6,14 +6,14 @@
 "@id": "https://github.com/bgrewell/stencil/security/vex"
 author: "bgrewell"
 role: "Document Creator"
-timestamp: "2026-06-10T18:45:04Z"
+timestamp: "2026-11-05T22:58:59Z"
 version: 1
 tooling: "trivy + github-actions"
 
 product:
   "@id": "pkg:golang/bgrewell/stencil"
   name: "stencil"
-  version: "6d9a4042697ece4390e596e10eef12fada4facbd"
+  version: "3fdaddf79e7b6a02678e4fd0e4ffaaf4b689a01a"
 
 # Vulnerability Statements
 # Status values: not_affected, affected, fixed, under_investigation
@@ -22,6 +22,13 @@ statements:
       "@id": "CVE-2022-29526"
       name: "CVE-2022-29526"
       description: "golang: syscall: faccessat checks wrong group"
+    status: "under_investigation"
+    justification: "Automatically detected by Trivy scan"
+    action_statement: "Review and assess applicability"
+  - vulnerability:
+      "@id": "CVE-2026-39824"
+      name: "CVE-2026-39824"
+      description: "Invoking integer overflow in NewNTUnicodeString in golang.org/x/sys/windows"
     status: "under_investigation"
     justification: "Automatically detected by Trivy scan"
     action_statement: "Review and assess applicability"

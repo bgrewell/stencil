@@ -2,10 +2,10 @@ SPDXVersion: SPDX-2.3
 DataLicense: CC0-1.0
 SPDXID: SPDXRef-DOCUMENT
 DocumentName: .
-DocumentNamespace: http://trivy.dev/repository/.-5d1c108b-d238-4151-b927-89c4d311e8ab
+DocumentNamespace: http://trivy.dev/repository/.-dcc55f57-cc00-41d0-aa4d-a89953232998
 Creator: Organization: aquasecurity
-Creator: Tool: trivy-0.71.0
-Created: 2026-06-10T18:44:59Z
+Creator: Tool: trivy-0.76.2
+Created: 2026-11-05T22:58:54Z
 
 ##### Package: go.mod
 
@@ -44,6 +44,19 @@ PackageSourceInfo: package found in: go.mod
 PackageLicenseConcluded: MIT
 PackageLicenseDeclared: MIT
 ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/mattn/go-isatty@v0.0.14
+
+##### Package: github.com/bgrewell/stencil
+
+PackageName: github.com/bgrewell/stencil
+SPDXID: SPDXRef-Package-207b37406d6cde6f
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: NOASSERTION
+PackageLicenseDeclared: NOASSERTION
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/bgrewell/stencil
 
 ##### Package: github.com/fatih/color
 
@@ -87,19 +100,6 @@ PackageLicenseConcluded: Apache-2.0
 PackageLicenseDeclared: Apache-2.0
 ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/theckman/yacspin@v0.13.12
 
-##### Package: github.com/bgrewell/stencil
-
-PackageName: github.com/bgrewell/stencil
-SPDXID: SPDXRef-Package-556214fc1564bc8f
-PackageSupplier: NOASSERTION
-PackageDownloadLocation: git+.
-PrimaryPackagePurpose: LIBRARY
-FilesAnalyzed: false
-PackageSourceInfo: package found in: go.mod
-PackageLicenseConcluded: NOASSERTION
-PackageLicenseDeclared: NOASSERTION
-ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/bgrewell/stencil
-
 ##### Package: github.com/mattn/go-runewidth
 
 PackageName: github.com/mattn/go-runewidth
@@ -113,6 +113,20 @@ PackageSourceInfo: package found in: go.mod
 PackageLicenseConcluded: MIT
 PackageLicenseDeclared: MIT
 ExternalRef: PACKAGE-MANAGER purl pkg:golang/github.com/mattn/go-runewidth@v0.0.13
+
+##### Package: gopkg.in/yaml.v3
+
+PackageName: gopkg.in/yaml.v3
+SPDXID: SPDXRef-Package-82ff794520f1187b
+PackageVersion: v3.0.1
+PackageSupplier: NOASSERTION
+PackageDownloadLocation: git+.
+PrimaryPackagePurpose: LIBRARY
+FilesAnalyzed: false
+PackageSourceInfo: package found in: go.mod
+PackageLicenseConcluded: Apache-2.0 AND MIT
+PackageLicenseDeclared: Apache-2.0 AND MIT
+ExternalRef: PACKAGE-MANAGER purl pkg:golang/gopkg.in/yaml.v3@v3.0.1
 
 ##### Package: github.com/mattn/go-colorable
 
@@ -140,16 +154,17 @@ PackageLicenseDeclared: NOASSERTION
 
 ##### Relationships
 
-Relationship: SPDXRef-Application-e90da172ca54b427 CONTAINS SPDXRef-Package-556214fc1564bc8f
+Relationship: SPDXRef-Application-e90da172ca54b427 CONTAINS SPDXRef-Package-207b37406d6cde6f
 Relationship: SPDXRef-DOCUMENT DESCRIBES SPDXRef-Repository-741c5ff31ac42f2e
 Relationship: SPDXRef-Package-13670bfcff525b49 DEPENDS_ON SPDXRef-Package-1090915c391d9612
+Relationship: SPDXRef-Package-207b37406d6cde6f DEPENDS_ON SPDXRef-Package-543b4e16ddbe91b9
+Relationship: SPDXRef-Package-207b37406d6cde6f DEPENDS_ON SPDXRef-Package-82ff794520f1187b
 Relationship: SPDXRef-Package-2ffbebc1251d1031 DEPENDS_ON SPDXRef-Package-13670bfcff525b49
 Relationship: SPDXRef-Package-2ffbebc1251d1031 DEPENDS_ON SPDXRef-Package-f39f64e43f2dcf46
 Relationship: SPDXRef-Package-543b4e16ddbe91b9 DEPENDS_ON SPDXRef-Package-13670bfcff525b49
 Relationship: SPDXRef-Package-543b4e16ddbe91b9 DEPENDS_ON SPDXRef-Package-2ffbebc1251d1031
 Relationship: SPDXRef-Package-543b4e16ddbe91b9 DEPENDS_ON SPDXRef-Package-6b50818c033cb628
 Relationship: SPDXRef-Package-543b4e16ddbe91b9 DEPENDS_ON SPDXRef-Package-f39f64e43f2dcf46
-Relationship: SPDXRef-Package-556214fc1564bc8f DEPENDS_ON SPDXRef-Package-543b4e16ddbe91b9
 Relationship: SPDXRef-Package-6b50818c033cb628 DEPENDS_ON SPDXRef-Package-48ed6c88d0309992
 Relationship: SPDXRef-Package-f39f64e43f2dcf46 DEPENDS_ON SPDXRef-Package-13670bfcff525b49
 Relationship: SPDXRef-Repository-741c5ff31ac42f2e CONTAINS SPDXRef-Application-e90da172ca54b427
