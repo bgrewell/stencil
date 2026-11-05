@@ -35,6 +35,7 @@ func newTestApp(t *testing.T, withConfig bool) (*App, *captured, *bytes.Buffer) 
 	g := local.StringSlice("gens", "", "generators", nil)
 	g.ConfigKey = "traffic.generators"
 	local.Bool("verbose", "v", "verbose", false)
+	local.Bool("quiet", "q", "quiet", false)
 
 	run := &Command{
 		Name:  "run",
@@ -94,12 +95,36 @@ func TestProvenanceDefaultsAndFlags(t *testing.T) {
 }
 
 func TestProvenanceBundledShortBools(t *testing.T) {
-	app, cap, errb := newTestApp(t, false)
-	if code := app.Execute([]string{"run", "-v"}); code != int(ExitOK) {
-		t.Fatalf("exit %d: %s", code, errb.String())
+	cases := []struct {
+		name string
+		argv []string
+		want map[string]bool // flag -> expected value; all must report SourceFlag
+	}{
+		{"single short", []string{"run", "-v"}, map[string]bool{"verbose": true}},
+		{"bundled", []string{"run", "-vq"}, map[string]bool{"verbose": true, "quiet": true}},
+		{"bundled reversed", []string{"run", "-qv"}, map[string]bool{"verbose": true, "quiet": true}},
 	}
-	if cap.flags.Source("verbose") != SourceFlag {
-		t.Fatalf("verbose source = %v", cap.flags.Source("verbose"))
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			app, cap, errb := newTestApp(t, false)
+			if code := app.Execute(tc.argv); code != int(ExitOK) {
+				t.Fatalf("exit %d: %s", code, errb.String())
+			}
+			for name, want := range tc.want {
+				if got := cap.flags.Bool(name); got != want {
+					t.Fatalf("%s = %v, want %v", name, got, want)
+				}
+				if src := cap.flags.Source(name); src != SourceFlag {
+					t.Fatalf("%s source = %v, want flag", name, src)
+				}
+			}
+			// A bool not in the bundle keeps default provenance.
+			for _, name := range []string{"verbose", "quiet"} {
+				if _, inBundle := tc.want[name]; !inBundle && cap.flags.Changed(name) {
+					t.Fatalf("%s should be unchanged", name)
+				}
+			}
+		})
 	}
 }
 
