@@ -16,16 +16,16 @@ Every item carries one status tag, written right after its number:
 - `[dropped]`: will not be done; add a one-line reason.
 
 Priority is the section (P1 > P2 > P3) and then the number within it. The top
-open item is the lowest-numbered `[open]` item (item 1 is now `[in-progress]`: `docs/specs/item-1-env-cast.md`; item 2 is next). Update the tag
+open item is the lowest-numbered `[open]` item (item 1 is `[done]`; item 2 is `[spec]`: `docs/specs/item-2-version-help-scan.md`). Update the tag
 in the same change that moves the item along.
 
 ## P1: Bugs that produce wrong behavior
 
-1. `[in-progress]` **Env values are never cast or validated** *(verified)*. `applyEnv` stores the raw
+1. `[done]` **Env values are never cast or validated** *(verified)*. Merged in [#7](https://github.com/bgrewell/stencil/pull/7). `applyEnv` stores the raw
    string. `Enum` and `Validate` are bypassed, and a bad int or duration from the
    environment silently reads as `0` with exit code 0. Fix: run `castValue` on env
    values and return a usage error on failure.
-2. `[open]` **`--version`/`-V` and `-h`/`--help` are matched anywhere in argv** *(verified)*.
+2. `[spec]` **`--version`/`-V` and `-h`/`--help` are matched anywhere in argv** *(verified)*.
    This includes after `--` and as the value of another flag (`--name --version`
    prints the version). `-V` also can't be reused as an app flag. Fix: scan only
    until `--` and skip tokens consumed as flag values, or move these into the flag
