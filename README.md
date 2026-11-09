@@ -1,7 +1,113 @@
-# golang-repo-template
-This project is a template repository for my typical golang repositories
+# Stencil
 
-## Versioning
+Stencil is a Go library for building command-line applications. You describe
+your commands and typed flags; Stencil parses arguments, generates help,
+resolves flag values from several sources, and gives you a small console UI
+for messages and spinners.
+
+It also ships a developer CLI (the `stencil` binary) that tracks your
+project's semantic version and can install a git hook to bump it on commit.
+
+## Features
+
+- Nested command tree with aliases, hidden and deprecated commands, and
+  pre/post run hooks (including persistent ones inherited by subcommands)
+- Typed flags: `Bool`, `String`, `Int`, `Duration`, `StringSlice`,
+  `StringArray`, `IntSlice`, with short names, env vars, required flags,
+  enum values and custom validation
+- Layered value resolution: default, then config file, then environment,
+  then command line, with provenance (`Source`, `Changed`)
+- Pluggable config files (`ConfigLoader`; a YAML loader is included)
+- Generated help (`-h`, `--help`, `app help ...`) and `--version` / `-V`
+- Color modes (auto, on, off; honors `NO_COLOR`)
+- `pkg/ui`: console messages (`Info`, `Warn`, `Error`) and spinner tasks
+
+## Install
+
+```bash
+go get github.com/bgrewell/stencil
+```
+
+Requires Go 1.22 or newer.
+
+## Quick start
+
+```go
+package main
+
+import (
+    "fmt"
+    "os"
+
+    "github.com/bgrewell/stencil"
+)
+
+func main() {
+    flags := stencil.NewFlagSet()
+    flags.String("name", "n", "who to greet", "world").Env = "GREET_NAME"
+
+    app := stencil.NewApp(
+        stencil.WithName("greet"),
+        stencil.WithDescription("A friendly greeter"),
+        stencil.WithRootCommand(&stencil.Command{
+            Name:    "greet",
+            Summary: "Say hello",
+            Flags:   flags,
+            Run: func(ctx *stencil.Context) error {
+                fmt.Printf("hello, %s\n", ctx.Flags.String("name"))
+                return nil
+            },
+        }),
+    )
+
+    os.Exit(app.Execute(os.Args[1:]))
+}
+```
+
+```console
+$ greet                    # hello, world
+$ GREET_NAME=env greet     # hello, env
+$ greet --name cli         # hello, cli
+$ greet --help             # generated help
+```
+
+## Concepts
+
+- **App**: created with `NewApp` and options (`WithName`, `WithDescription`,
+  `WithVersionInfo`, `WithColorMode`, `WithIO`, `WithUI`, `WithRootCommand`,
+  `WithConfigFile`). `app.Execute(args)` returns an exit code.
+- **Command**: a `Name`, `Summary`, optional `Run`, `Flags` (local),
+  `PersistentFlags` (inherited by subcommands), positional `Args`
+  (`ArgSpec`) and `Sub` commands.
+- **Context**: passed to `Run`; holds `Args`, the command `Path` and the
+  resolved `Flags`.
+
+## Console UI
+
+```go
+ctx.App.UI.Info("starting")
+task, err := ctx.App.UI.Task("building")
+if err == nil {
+    // ... work ...
+    task.Complete() // or task.Fail()
+}
+```
+
+Supply your own implementation of `ui.UI` with `WithUI`. A runnable demo
+lives in `cmd/example`:
+
+```bash
+go run ./cmd/example
+```
+
+## Development
+
+```bash
+go build ./...
+go test ./...
+```
+
+## Developer CLI: versioning
 
 Stencil ships a small developer CLI (`cmd/`, the `stencil` binary) that tracks a
 project's semantic version in plain-text files under `.stencil/`
@@ -32,7 +138,7 @@ stencil hook uninstall
 > Run the subcommand first, then flags: `stencil version show -C path/to/repo`
 > (use `-C`/`--dir` to operate on a repo other than the current directory).
 
-## Setting Versioning Information
+## Setting version information
 
 Feed the tracked version into your build via ldflags:
 
@@ -45,7 +151,8 @@ go build -ldflags "\
   -X 'github.com/bgrewell/stencil.appCommitHash=abc1234' \
   -X 'github.com/bgrewell/stencil.appBranch=main'"
 ```
-## Config Files and Value Provenance
+
+## Config files and value provenance
 
 Flag values resolve in layers, lowest to highest:
 
