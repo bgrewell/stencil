@@ -1,6 +1,6 @@
 # Spec: scope `--version` and `-h` matching (ROADMAP item 2)
 
-Status: awaiting approval
+Status: in-progress (approved)
 
 ## Problem
 `Execute` (parser.go) scans all of argv for `--version`/`-V` before anything is
@@ -51,8 +51,9 @@ built-in check wins.
 Unknown-subcommand errors (item 3), `no-` handling (item 4), bundled short
 flags (item 8), making `-h`/`-V` real flags in help output.
 
-## Open questions
-1. Is a user flag named `help`/`h` allowed to override the built-in help too?
-   Default: yes, same rule as `-V`.
-2. Alternative: register version/help as real flags in the parser. It's more
-   uniform, but it changes `parseFlags` and help output. Default: not now.
+## Decisions
+1. A user flag named `help`/`h` overrides the built-in help, same rule as
+   `-V`. `--help` stays reserved for the built-in unless the app defines a long
+   flag `help`; `-h` likewise unless the app defines short `h`.
+2. Version/help are not registered as real flags in the parser. `parseFlags`
+   and help output are unchanged. Revisit later if needed.
