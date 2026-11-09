@@ -75,7 +75,10 @@ func (p *Parser) Execute(argv []string) int {
 		return int(ExitUsage)
 	}
 	// Apply env if set
-	applyEnv(path, values, sources)
+	if err := applyEnv(path, values, sources); err != nil {
+		fmt.Fprintln(p.cfg.Err, err.Error())
+		return int(ExitUsage)
+	}
 
 	// Parse flags and positionals
 	vals, pos, err := p.parseFlags(path, rest, values, sources)

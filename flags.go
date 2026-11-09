@@ -251,17 +251,22 @@ func mergeFlagDefaults(path []*Command) (map[string]any, map[string]Source) {
 // definition for each flag name is consulted, so a leaf-local flag shadows a
 // persistent one exactly as it does for defaults, config, and the command
 // line.
-func applyEnv(path []*Command, values map[string]any, sources map[string]Source) {
+func applyEnv(path []*Command, values map[string]any, sources map[string]Source) error {
 	longLkp, _ := flagLookups(path)
 	for _, f := range collectFlags(path) {
 		if f.Env == "" || f.Hidden || longLkp[f.Name] != f {
 			continue
 		}
 		if v, ok := os.LookupEnv(f.Env); ok && v != "" {
-			values[f.Name] = v
+			cv, err := castValue(f, v)
+			if err != nil {
+				return fmt.Errorf("invalid env %s for --%s: %w", f.Env, f.Name, err)
+			}
+			values[f.Name] = cv
 			sources[f.Name] = SourceEnv
 		}
 	}
+	return nil
 }
 
 func castValue(f *Flag, v any) (any, error) {

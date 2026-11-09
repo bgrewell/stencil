@@ -16,12 +16,12 @@ Every item carries one status tag, written right after its number:
 - `[dropped]`: will not be done; add a one-line reason.
 
 Priority is the section (P1 > P2 > P3) and then the number within it. The top
-open item is the lowest-numbered `[open]` item (item 1 is now `[spec]`: `docs/specs/item-1-env-cast.md`; item 2 is next). Update the tag
+open item is the lowest-numbered `[open]` item (item 1 is now `[in-progress]`: `docs/specs/item-1-env-cast.md`; item 2 is next). Update the tag
 in the same change that moves the item along.
 
 ## P1: Bugs that produce wrong behavior
 
-1. `[spec]` **Env values are never cast or validated** *(verified)*. `applyEnv` stores the raw
+1. `[in-progress]` **Env values are never cast or validated** *(verified)*. `applyEnv` stores the raw
    string. `Enum` and `Validate` are bypassed, and a bad int or duration from the
    environment silently reads as `0` with exit code 0. Fix: run `castValue` on env
    values and return a usage error on failure.
