@@ -6,14 +6,14 @@
 "@id": "https://github.com/bgrewell/stencil/security/vex"
 author: "bgrewell"
 role: "Document Creator"
-timestamp: "2026-11-09T15:09:27Z"
+timestamp: "2026-11-09T15:40:16Z"
 version: 1
 tooling: "trivy + github-actions"
 
 product:
   "@id": "pkg:golang/bgrewell/stencil"
   name: "stencil"
-  version: "5c77341a3b0399d356a372fed8d29b2a0543179a"
+  version: "3f149f2384206063ff37b1bc62f7a4adb78a1017"
 
 # Vulnerability Statements
 # Status values: not_affected, affected, fixed, under_investigation
