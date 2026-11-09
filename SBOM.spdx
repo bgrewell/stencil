@@ -2,10 +2,10 @@ SPDXVersion: SPDX-2.3
 DataLicense: CC0-1.0
 SPDXID: SPDXRef-DOCUMENT
 DocumentName: .
-DocumentNamespace: http://trivy.dev/repository/.-8247f1dd-8de6-4286-8bce-81574abaa618
+DocumentNamespace: http://trivy.dev/repository/.-30012a86-6fcb-4851-acbe-9eb3b62b60c4
 Creator: Organization: aquasecurity
 Creator: Tool: trivy-0.76.2
-Created: 2026-11-09T17:07:15Z
+Created: 2026-11-09T23:36:12Z
 
 ##### Package: docs/package-lock.json
 
