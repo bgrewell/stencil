@@ -23,20 +23,6 @@ type Parser struct {
 func NewParser(cfg ParserConfig) *Parser { return &Parser{cfg: cfg} }
 
 func (p *Parser) Execute(argv []string) int {
-	// Global "version" handling
-	for _, a := range argv {
-		if a == "--version" || a == "-V" {
-			renderVersion(p.cfg.Out, AppInfo{
-				Name:        p.cfg.App.Name,
-				Description: p.cfg.App.Description,
-				Version:     p.cfg.App.Version,
-				Show:        p.cfg.ShowInfo,
-				Colored:     p.cfg.Colored,
-			})
-			return int(ExitOK)
-		}
-	}
-
 	// Built-in "help" command: `app help ...`
 	if len(argv) > 0 && argv[0] == "help" {
 		argv = argv[1:]
@@ -59,12 +45,14 @@ func (p *Parser) Execute(argv []string) int {
 	}
 	leaf := path[len(path)-1]
 
-	// Recognize -h/--help anywhere
-	for _, a := range argv {
-		if a == "-h" || a == "--help" {
-			renderHelp(p.cfg.Out, p.appInfo(), path)
-			return int(ExitOK)
-		}
+	// Built-in -V/--version and -h/--help, only where a real flag could appear
+	switch scanBuiltin(path, rest) {
+	case "version":
+		renderVersion(p.cfg.Out, p.appInfo())
+		return int(ExitOK)
+	case "help":
+		renderHelp(p.cfg.Out, p.appInfo(), path)
+		return int(ExitOK)
 	}
 
 	// Merged defaults
@@ -333,6 +321,59 @@ func flagLookups(path []*Command) (long, short map[string]*Flag) {
 		}
 	}
 	return long, short
+}
+
+// scanBuiltin walks argv like parseFlags and returns "version" or "help" if a
+// built-in token appears as a real flag, else "". It stops at "--" and skips
+// tokens consumed as flag values. A user flag with the same long or short name
+// takes precedence over the built-in. Version wins over help.
+func scanBuiltin(path []*Command, argv []string) string {
+	longLkp, shortLkp := flagLookups(path)
+	found := ""
+	for i := 0; i < len(argv); i++ {
+		tok := argv[i]
+		if tok == "--" {
+			break
+		}
+		var f *Flag
+		hasEq := false
+		neg := false
+		if strings.HasPrefix(tok, "--") {
+			name, _, eq := splitEq(strings.TrimPrefix(tok, "--"))
+			hasEq = eq
+			var ok bool
+			f, _, neg, ok = lookupLong(longLkp, name)
+			if !ok {
+				f = nil
+				if !eq && name == "version" {
+					return "version"
+				}
+				if !eq && name == "help" {
+					found = "help"
+				}
+			}
+		} else if strings.HasPrefix(tok, "-") && len(tok) > 1 {
+			body := strings.TrimPrefix(tok, "-")
+			if !strings.Contains(body, "=") && len(body) > 1 {
+				continue // bundled shorts: never built-ins
+			}
+			name, _, eq := splitEq(body)
+			hasEq = eq
+			f = shortLkp[name]
+			if f == nil && !eq {
+				if name == "V" {
+					return "version"
+				}
+				if name == "h" {
+					found = "help"
+				}
+			}
+		}
+		if f != nil && !hasEq && !(f.Type == FlagBool || neg) {
+			i++ // next token is this flag's value
+		}
+	}
+	return found
 }
 
 func (p *Parser) appInfo() AppInfo {
